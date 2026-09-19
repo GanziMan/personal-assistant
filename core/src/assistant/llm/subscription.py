@@ -104,8 +104,28 @@ class SubscriptionBackend:
             allowed_tools=self._allowed_tools(list(mcp_servers)),
             can_use_tool=self._permit,
             max_turns=self.config.agent.max_iterations,
+            effort=self.config.models.effort,
+            # 토큰 단위로 받는다. 문장이 통째로 오면 실제보다 훨씬
+            # 느리게 느껴진다 — 체감 지연의 대부분이 여기였다.
+            include_partial_messages=True,
         )
-        log.info("구독 백엔드 준비: MCP 서버 %s", ", ".join(mcp_servers) or "(없음)")
+        log.info(
+            "구독 백엔드 준비: MCP 서버 %s (effort=%s)",
+            ", ".join(mcp_servers) or "(없음)",
+            self.config.models.effort,
+        )
+
+    async def prewarm(self, session_id: str = "panel") -> None:
+        """클라이언트를 미리 띄워둔다.
+
+        첫 연결에서 SDK 가 claude 프로세스와 MCP 서버들을 모두 기동한다.
+        그 비용을 사용자의 첫 질문이 치르게 두지 않는다.
+        """
+        try:
+            await self._client(session_id)
+            log.info("구독 백엔드 예열 완료 (%s)", session_id)
+        except Exception as exc:
+            log.warning("예열 실패 (무시하고 계속): %s", exc)
 
     async def _client(self, session_id: str) -> Any:
         if session_id not in self._clients:
@@ -117,7 +137,12 @@ class SubscriptionBackend:
         return self._clients[session_id]
 
     async def stream(self, session_id: str, prompt: str) -> AsyncIterator[Event]:
-        from claude_agent_sdk import AssistantMessage, ResultMessage, TextBlock, ToolUseBlock
+        from claude_agent_sdk import (
+            AssistantMessage,
+            ResultMessage,
+            StreamEvent,
+            ToolUseBlock,
+        )
 
         # 승인 응답이면 보류된 도구를 한 번 풀고 원래 요청을 다시 보낸다
         if prompt.strip().startswith(APPROVE_PREFIX):
@@ -135,11 +160,19 @@ class SubscriptionBackend:
             await client.query(prompt)
 
             async for message in client.receive_response():
+                if isinstance(message, StreamEvent):
+                    # 원본 Anthropic 스트림 이벤트. 텍스트 델타만 흘린다.
+                    raw = message.event
+                    if raw.get("type") == "content_block_delta":
+                        delta = raw.get("delta") or {}
+                        if delta.get("type") == "text_delta" and (chunk := delta.get("text")):
+                            yield Event(EventType.TEXT, session_id, chunk)
+                    continue
+
                 if isinstance(message, AssistantMessage):
+                    # 텍스트는 이미 델타로 흘려보냈다. 도구 호출만 본다.
                     for block in message.content:
-                        if isinstance(block, TextBlock):
-                            yield Event(EventType.TEXT, session_id, block.text)
-                        elif isinstance(block, ToolUseBlock):
+                        if isinstance(block, ToolUseBlock):
                             name = getattr(block, "name", "")
                             yield Event(EventType.TOOL_CALL, session_id, name)
                             if is_destructive(name) and name not in self._approved:

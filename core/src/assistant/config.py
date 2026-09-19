@@ -34,6 +34,10 @@ class ModelConfig:
     # 구독 경로에서는 별칭을 쓴다. Claude Code 가 현재 모델로 해석한다.
     subscription_model: str = "sonnet"
 
+    # 추론 강도. 비서가 하는 일은 대부분 조회와 요약이라 high 가 필요
+    # 없다. 기본값(high)을 그대로 쓰면 체감 지연이 몇 배로 벌어진다.
+    effort: str = "low"
+
     # 모델 ID 는 platform.claude.com/docs/en/models/overview 기준 (2026-09).
     # 일상 대화·짧은 작업은 sonnet, 계획·코딩은 opus 로 올린다.
     cloud_model: str = "claude-sonnet-5"
@@ -56,6 +60,10 @@ class AgentConfig:
 
     # 파괴적 도구는 확인 게이트를 통과해야 한다 (ADR-005)
     require_confirmation: bool = True
+
+    # 데몬 기동 시 SDK 클라이언트를 미리 연결해둔다. 첫 질문이
+    # MCP 서버 기동 비용을 뒤집어쓰지 않게 한다.
+    prewarm: bool = True
 
     # Claude Code 내장 웹 도구. 검색·페치는 직접 만들 이유가 없다.
     # 파일·셸 내장 도구는 여전히 막는다 — 그건 우리 파일 서버의

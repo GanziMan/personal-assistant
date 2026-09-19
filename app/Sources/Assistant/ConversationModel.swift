@@ -17,7 +17,9 @@ final class ConversationModel: ObservableObject {
     @Published var isWorking = false
 
     private let client = AgentClient()
-    private let sessionId = UUID().uuidString.prefix(12).lowercased()
+    // 데몬이 기동 시 "panel" 세션을 미리 예열해둔다. 매번 새 세션을
+    // 만들면 그 예열이 버려지고 첫 질문이 다시 느려진다.
+    private let sessionId = "panel"
     private var currentTask: Task<Void, Never>?
 
     func submit() {
@@ -32,7 +34,7 @@ final class ConversationModel: ObservableObject {
         currentTask = Task {
             defer { isWorking = false }
             do {
-                let stream = await client.send(prompt: prompt, sessionId: String(sessionId))
+                let stream = await client.send(prompt: prompt, sessionId: sessionId)
                 for try await event in stream {
                     apply(event)
                 }

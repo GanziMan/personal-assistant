@@ -57,8 +57,10 @@ class Agent:
             self._backend = SubscriptionBackend(self.config)
             await self._backend.start()
 
-        # 도구층은 두 경로 모두에서 쓴다. 구독 백엔드는 자기 MCP 연결로
-        # 모델 도구 호출을 처리하고, 여기 레지스트리는 규칙 잡이 쓴다.
+        # 구독 백엔드는 자기 MCP 연결을 따로 띄운다. 여기 레지스트리를
+        # 같은 규모로 또 띄우면 프로세스가 두 배가 되고 기동이 느려진다.
+        # 데몬이 직접 부르는 건 대기 화면(calendar)과 알림(system)뿐이다.
+        needed = {"calendar", "system"} if self.uses_subscription else None
         specs = [
             ServerSpec(
                 name=str(s["name"]),
@@ -66,8 +68,12 @@ class Agent:
                 args=list(s.get("args", [])),  # type: ignore[arg-type]
             )
             for s in self.config.servers
+            if needed is None or str(s["name"]) in needed
         ]
         await self.tools.start(specs)
+
+        if self._backend is not None and self.config.agent.prewarm:
+            await self._backend.prewarm()
 
     async def aclose(self) -> None:
         if self._backend is not None:
