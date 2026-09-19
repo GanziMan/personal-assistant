@@ -16,13 +16,16 @@ say() { printf '\033[1m▸\033[0m %s\n' "$1"; }
 die() { printf '\033[31m✗\033[0m %s\n' "$1" >&2; exit 1; }
 
 [[ "$(uname -s)" == "Darwin" ]] || die "macOS 전용입니다."
-command -v swift >/dev/null || die "Swift 툴체인이 없습니다:  xcode-select --install"
+# swift 는 Command Line Tools 에 들어 있지만 PATH 에 없는 경우가 많다.
+# xcrun 으로 부르면 CLT 든 전체 Xcode 든 알아서 찾는다.
+xcrun --find swift >/dev/null 2>&1 || die "Swift 툴체인이 없습니다:  xcode-select --install"
+SWIFT=(xcrun swift)
 
 say "빌드"
 cd "$REPO/app"
-swift build -c release
+"${SWIFT[@]}" build -c release
 
-BINARY="$(swift build -c release --show-bin-path)/$APP_NAME"
+BINARY="$("${SWIFT[@]}" build -c release --show-bin-path)/$APP_NAME"
 [[ -x "$BINARY" ]] || die "실행 파일이 만들어지지 않았습니다: $BINARY"
 
 say "번들 조립 ($BUNDLE)"
