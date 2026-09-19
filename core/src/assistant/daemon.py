@@ -19,6 +19,7 @@ from .config import LOG_DIR, SOCKET_PATH, Config, ensure_dirs
 from .protocol import Event, EventType
 from .scheduler import DEFAULT_JOBS, Scheduler
 from .scheduler import rules
+from .status import StatusProvider
 from .scheduler.delivery import Delivery
 
 log = logging.getLogger("assistantd")
@@ -30,6 +31,7 @@ class Daemon:
         self.agent = Agent(config)
         self._server: asyncio.Server | None = None
         self._scheduler: Scheduler | None = None
+        self._status = StatusProvider(self.agent)
         self._tasks: set[asyncio.Task[None]] = set()
 
     async def handle(
@@ -59,6 +61,13 @@ class Daemon:
         match event.type:
             case EventType.PING:
                 writer.write(Event(EventType.PONG).encode())
+                await writer.drain()
+
+            case EventType.STATUS:
+                status = await self._status.get()
+                writer.write(
+                    Event(EventType.STATUS_RESULT, data=status.to_dict()).encode()
+                )
                 await writer.drain()
 
             case EventType.PROMPT:

@@ -70,6 +70,10 @@ macOS TCC 가 `~/Documents` 를 보호해서 launchd 데몬이 그 안을 읽지
 ./scripts/build-app.sh
 ```
 
+화면 오른쪽에 세워두는 반투명 플로팅 패널. 말을 걸지 않을 때는 다음 일정
+카운트다운·남은 할 일·아침 브리핑을 보여준다 (이 화면은 모델을 부르지
+않는다, ADR-017).
+
 SwiftPM 으로 빌드해 `~/Applications/Assistant.app` 을 만들고 로그인 시
 자동 실행으로 등록한다. Xcode 프로젝트는 두지 않는다 — Command Line
 Tools 만 있어도 빌드된다 (`xcrun swift` 로 부른다). ⌥Space 로 부른다.

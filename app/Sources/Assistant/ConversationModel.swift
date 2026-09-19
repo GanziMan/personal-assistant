@@ -15,15 +15,10 @@ final class ConversationModel: ObservableObject {
     @Published var turns: [Turn] = []
     @Published var input: String = ""
     @Published var isWorking = false
-    @Published var daemonDown = false
 
     private let client = AgentClient()
     private let sessionId = UUID().uuidString.prefix(12).lowercased()
     private var currentTask: Task<Void, Never>?
-
-    func checkDaemon() async {
-        daemonDown = await !client.daemonIsRunning
-    }
 
     func submit() {
         let prompt = input.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -64,11 +59,18 @@ final class ConversationModel: ObservableObject {
             if let idx = turns.lastIndex(where: { $0.role == .assistant }) {
                 turns[idx].text += event.text
             }
+
         case .toolCall:
+            // 진행 중인 답변 줄 바로 앞에 끼워넣는다
             turns.insert(Turn(role: .tool, text: event.text), at: max(turns.count - 1, 0))
+
+        case .confirm:
+            turns.append(Turn(role: .error, text: event.text))
+
         case .error:
             appendError(event.text)
-        case .thinking, .toolResult, .confirm, .done, .pong:
+
+        case .thinking, .toolResult, .done, .pong, .statusResult, .unknown:
             break
         }
     }
@@ -79,6 +81,5 @@ final class ConversationModel: ObservableObject {
             turns.remove(at: idx)
         }
         turns.append(Turn(role: .error, text: message))
-        daemonDown = message.contains("데몬")
     }
 }

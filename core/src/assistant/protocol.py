@@ -18,6 +18,7 @@ class EventType(StrEnum):
     PROMPT = "prompt"
     CANCEL = "cancel"
     PING = "ping"
+    STATUS = "status"            # 대기 화면용 요약 요청
 
     # 데몬 → 클라이언트
     TEXT = "text"                # 응답 조각 (스트리밍)
@@ -28,6 +29,7 @@ class EventType(StrEnum):
     DONE = "done"
     ERROR = "error"
     PONG = "pong"
+    STATUS_RESULT = "status_result"
 
 
 @dataclass(slots=True)

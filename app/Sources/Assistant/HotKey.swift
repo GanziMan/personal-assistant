@@ -9,11 +9,11 @@ import Carbon.HIToolbox
 final class HotKey {
     private var ref: EventHotKeyRef?
     private var handler: EventHandlerRef?
-    private let action: () -> Void
+    private let action: @MainActor () -> Void
 
     private static var shared: HotKey?
 
-    init(action: @escaping () -> Void) {
+    init(action: @escaping @MainActor () -> Void) {
         self.action = action
     }
 
@@ -28,7 +28,9 @@ final class HotKey {
         InstallEventHandler(
             GetApplicationEventTarget(),
             { _, _, _ in
-                DispatchQueue.main.async { HotKey.shared?.action() }
+                DispatchQueue.main.async {
+                    MainActor.assumeIsolated { HotKey.shared?.action() }
+                }
                 return noErr
             },
             1, &spec, nil, &handler
