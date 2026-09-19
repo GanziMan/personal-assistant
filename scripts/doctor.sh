@@ -42,13 +42,29 @@ except Exception as e: print('fail:', e); sys.exit(1)
 " >/dev/null 2>&1; then ok "~/$d"; else no "~/$d — 권한 없음"; fi
 done
 
-hdr "최근 오류 (daemon.err.log)"
-if [[ -f "$RUNTIME/logs/daemon.err.log" ]]; then
-  grep -iE "error|traceback|failed|실패" "$RUNTIME/logs/daemon.err.log" | tail -12 || echo "  (오류 없음)"
+LOG="$RUNTIME/logs/daemon.err.log"
+
+# 마지막 기동 이후만 본다. 로그 전체를 보여주면 이미 고친 오류가
+# 계속 따라다녀서, 지금 문제인지 옛날 흔적인지 구분되지 않는다.
+since_last_start() {
+  [[ -f "$LOG" ]] || return 1
+  local start
+  start=$(grep -n "listening on" "$LOG" | tail -1 | cut -d: -f1)
+  if [[ -n "$start" ]]; then tail -n "+$start" "$LOG"; else cat "$LOG"; fi
+}
+
+hdr "이번 기동의 MCP 연결"
+if out=$(since_last_start); then
+  echo "$out" | grep -E "MCP 서버|구독 백엔드" | tail -8 || echo "  (연결 기록 없음)"
 else
   echo "  (로그 파일 없음)"
 fi
 
-hdr "MCP 연결 로그"
-grep -E "MCP 서버|구독 백엔드" "$RUNTIME/logs/daemon.err.log" 2>/dev/null | tail -6 || echo "  (없음)"
+hdr "이번 기동의 오류"
+if out=$(since_last_start); then
+  found=$(echo "$out" | grep -iE "error|traceback|failed|실패" | tail -12)
+  [[ -n "$found" ]] && echo "$found" || ok "없음"
+else
+  echo "  (로그 파일 없음)"
+fi
 echo
