@@ -45,11 +45,36 @@ docs/         설계 문서
 
 ## 설치
 
+새 맥이라면 한 줄이면 된다.
+
+```
+git clone https://github.com/GanziMan/personal-assistant.git
+cd personal-assistant && ./scripts/bootstrap.sh
+```
+
+Homebrew 의존성, Swift 툴체인, Claude Code 로그인, Ollama 모델, 데몬,
+메뉴바 앱까지 확인하고 설치한다. 이미 있는 것은 건너뛴다.
+
+수동으로 하려면:
+
 ```
 brew install uv ollama node
 npm install -g @anthropic-ai/claude-code
 claude login
 ./scripts/install.sh
+```
+
+## 여러 맥에서 쓰기
+
+맥마다 독립적으로 설치한다. 기억과 문서 색인은 그 맥의 레포·파일에
+대한 것이라 옮기지 않는다 (ADR-033). 설정과 구독 피드만 옮긴다.
+
+```
+# 기존 맥에서
+./scripts/profile.sh export ~/Desktop/assistant-profile.json
+
+# 새 맥에서
+./scripts/profile.sh import ~/Desktop/assistant-profile.json
 ```
 
 추론은 Claude Code 로그인(Pro/Max 구독)에서 사용량이 빠진다. 별도 API
