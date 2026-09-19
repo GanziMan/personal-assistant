@@ -2,14 +2,14 @@ import SwiftUI
 
 /// 말을 걸지 않을 때 보이는 부분.
 ///
-/// 항상 떠 있는 창은 비어 있으면 거슬려서 닫게 된다. 그렇다고 가득
-/// 채우면 작업에 방해가 된다. 지금 당장 쓸모 있는 것만 둔다 —
-/// 다음 일정, 남은 할 일, 접어둔 아침 브리핑.
+/// 항상 떠 있는 창은 비어 있으면 거슬려서 닫게 되고, 가득 차면 작업에
+/// 방해가 된다. 지금 당장 쓸모 있는 것만, 한눈에 읽히게 둔다.
 struct IdleView: View {
     @ObservedObject var model: StatusModel
+    var onTodoTap: (String) -> Void = { _ in }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 12) {
             if !model.daemonReachable {
                 DaemonBanner()
             }
@@ -17,7 +17,13 @@ struct IdleView: View {
             NextEventCard(status: model.status)
 
             if !model.status.todos.isEmpty {
-                TodoList(items: model.status.todos)
+                SectionCard(icon: "checklist", title: "남은 할 일") {
+                    VStack(alignment: .leading, spacing: 9) {
+                        ForEach(model.status.todos, id: \.self) { item in
+                            TodoRow(text: item) { onTodoTap(item) }
+                        }
+                    }
+                }
             }
 
             if !model.status.brief.isEmpty {
@@ -27,54 +33,112 @@ struct IdleView: View {
     }
 }
 
+// MARK: - 다음 일정
+
 private struct NextEventCard: View {
     let status: StatusPayload
 
-    private var urgent: Bool { (status.nextEventMinutes ?? .max) <= 15 }
+    private var minutes: Int { status.nextEventMinutes ?? .max }
+    private var urgent: Bool { minutes <= 15 }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 7) {
             if let countdown = status.countdown {
-                Text(countdown)
-                    .font(.system(size: 26, weight: .semibold, design: .rounded))
-                    .foregroundStyle(urgent ? Color.orange : Color.primary)
-                    .contentTransition(.numericText())
+                HStack(alignment: .firstTextBaseline, spacing: 7) {
+                    Image(systemName: urgent ? "clock.badge.exclamationmark" : "clock")
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(urgent ? Color.orange : Color.secondary)
+
+                    Text(countdown)
+                        .font(.system(size: 27, weight: .semibold, design: .rounded))
+                        .foregroundStyle(urgent ? Color.orange : Color.primary)
+                        .contentTransition(.numericText())
+                        .animation(.snappy, value: minutes)
+                }
 
                 Text(status.eventTitle)
-                    .font(.callout)
+                    .font(.system(size: 13))
                     .foregroundStyle(.secondary)
                     .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+
+                if urgent {
+                    ProgressView(value: Double(max(0, 15 - minutes)), total: 15)
+                        .tint(.orange)
+                        .scaleEffect(y: 0.6, anchor: .center)
+                        .padding(.top, 2)
+                }
             } else {
-                Text("남은 일정 없음")
-                    .font(.system(size: 20, weight: .medium, design: .rounded))
-                    .foregroundStyle(.secondary)
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-private struct TodoList: View {
-    let items: [String]
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Text("남은 할 일")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-
-            ForEach(items, id: \.self) { item in
-                HStack(alignment: .top, spacing: 7) {
-                    Circle()
-                        .strokeBorder(.secondary, lineWidth: 1.2)
-                        .frame(width: 7, height: 7)
-                        .padding(.top, 5)
-                    Text(item)
-                        .font(.callout)
-                        .lineLimit(2)
+                HStack(spacing: 7) {
+                    Image(systemName: "checkmark.circle")
+                        .foregroundStyle(.tertiary)
+                    Text("남은 일정 없음")
+                        .font(.system(size: 15, weight: .medium, design: .rounded))
+                        .foregroundStyle(.secondary)
                 }
             }
         }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 2)
+    }
+}
+
+// MARK: - 공통 카드
+
+struct SectionCard<Content: View>: View {
+    let icon: String
+    let title: String
+    @ViewBuilder var content: Content
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 9) {
+            HStack(spacing: 5) {
+                Image(systemName: icon)
+                    .font(.system(size: 10, weight: .semibold))
+                Text(title)
+                    .font(.system(size: 11, weight: .medium))
+                Spacer()
+            }
+            .foregroundStyle(.tertiary)
+
+            content
+        }
+        .padding(12)
+        .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 11))
+        .overlay(
+            RoundedRectangle(cornerRadius: 11)
+                .strokeBorder(.white.opacity(0.06), lineWidth: 1)
+        )
+    }
+}
+
+private struct TodoRow: View {
+    let text: String
+    let action: () -> Void
+
+    @State private var hovering = false
+
+    var body: some View {
+        Button(action: action) {
+            HStack(alignment: .top, spacing: 8) {
+                Image(systemName: hovering ? "circle.inset.filled" : "circle")
+                    .font(.system(size: 11))
+                    .foregroundStyle(hovering ? Color.accentColor : Color.secondary)
+                    .padding(.top, 1)
+
+                Text(text)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.primary)
+                    .lineLimit(2)
+                    .multilineTextAlignment(.leading)
+
+                Spacer(minLength: 0)
+            }
+            .contentShape(Rectangle())
+        }
+        .buttonStyle(.plain)
+        .onHover { hovering = $0 }
+        .help("눌러서 비서에게 넘기기")
     }
 }
 
@@ -87,30 +151,29 @@ private struct BriefCard: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
-            Button {
-                withAnimation(.easeInOut(duration: 0.18)) { expanded.toggle() }
-            } label: {
-                HStack(spacing: 5) {
-                    Text("오늘 브리핑")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-                    Image(systemName: expanded ? "chevron.down" : "chevron.right")
-                        .font(.system(size: 9, weight: .bold))
-                        .foregroundStyle(.tertiary)
-                    Spacer()
-                }
-            }
-            .buttonStyle(.plain)
+        SectionCard(icon: "sun.horizon", title: "오늘 브리핑") {
+            VStack(alignment: .leading, spacing: 7) {
+                Text(expanded ? text : firstLine)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(expanded ? nil : 2)
+                    .textSelection(.enabled)
+                    .fixedSize(horizontal: false, vertical: true)
 
-            Text(expanded ? text : firstLine)
-                .font(.callout)
-                .foregroundStyle(.secondary)
-                .lineLimit(expanded ? nil : 2)
-                .textSelection(.enabled)
+                Button {
+                    withAnimation(.easeInOut(duration: 0.2)) { expanded.toggle() }
+                } label: {
+                    HStack(spacing: 3) {
+                        Text(expanded ? "접기" : "더 보기")
+                        Image(systemName: expanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 8, weight: .bold))
+                    }
+                    .font(.system(size: 11))
+                    .foregroundStyle(.tertiary)
+                }
+                .buttonStyle(.plain)
+            }
         }
-        .padding(10)
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 9))
     }
 }
 
@@ -121,9 +184,10 @@ struct DaemonBanner: View {
             Text("데몬이 실행 중이 아닙니다")
             Spacer()
         }
-        .font(.caption)
-        .padding(.horizontal, 9)
-        .padding(.vertical, 6)
-        .background(.orange.opacity(0.22), in: RoundedRectangle(cornerRadius: 7))
+        .font(.system(size: 11))
+        .foregroundStyle(.orange)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 7)
+        .background(.orange.opacity(0.14), in: RoundedRectangle(cornerRadius: 8))
     }
 }
