@@ -10,6 +10,8 @@ struct AssistantView: View {
     @Environment(\.colorScheme) private var scheme
     @FocusState private var inputFocused: Bool
     @State private var dropTargeted = false
+    /// 대화 중에 대기 화면을 펼쳐 볼지. 요약 줄을 눌러 전환한다.
+    @State private var dashboardExpanded = false
 
     private var hasConversation: Bool { !conversation.turns.isEmpty }
 
@@ -100,6 +102,13 @@ struct AssistantView: View {
                 .padding(.bottom, Theme.Space.sm)
             }
 
+            // 대화 중에도 한 줄은 남긴다. 누르면 대기 화면이 펼쳐진다.
+            if hasConversation {
+                SummaryBar(status: status.status, expanded: $dashboardExpanded)
+                    .padding(.horizontal, Theme.Space.lg)
+                    .padding(.bottom, Theme.Space.sm)
+            }
+
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: Theme.Space.md) {
@@ -108,7 +117,9 @@ struct AssistantView: View {
                                 conversation.input = prompt
                                 conversation.submit()
                             }
+                        }
 
+                        if !hasConversation || dashboardExpanded {
                             IdleView(model: status) { todo in
                                 conversation.input = "\(todo) 관련해서 도와줘"
                                 inputFocused = true
