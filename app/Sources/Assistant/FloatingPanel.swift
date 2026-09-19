@@ -46,8 +46,16 @@ final class PanelController: ObservableObject {
         didSet { applyLevel() }
     }
 
+    /// 접힌 상태. 다음 일정 한 줄만 남는 얇은 바가 된다.
+    @Published var isCompact = false {
+        didSet { applyHeight() }
+    }
+
     private var panel: FloatingPanel?
     private let frameKey = "panel.frame"
+    private var expandedHeight: CGFloat = 620
+
+    static let compactHeight: CGFloat = 76
 
     func toggle<Content: View>(@ViewBuilder content: () -> Content) {
         if isVisible { hide() } else { show(content: content) }
@@ -95,6 +103,28 @@ final class PanelController: ObservableObject {
 
     private func applyLevel(to target: FloatingPanel? = nil) {
         (target ?? panel)?.level = isPinned ? .floating : .normal
+    }
+
+    /// 접고 펼 때 높이만 바꾼다. 위쪽 모서리를 고정해 두어야
+    /// 화면에서 튀어 오르는 느낌이 없다.
+    private func applyHeight() {
+        guard let panel else { return }
+        var frame = panel.frame
+        let top = frame.maxY
+
+        if isCompact {
+            expandedHeight = frame.height
+            frame.size.height = Self.compactHeight
+        } else {
+            frame.size.height = expandedHeight
+        }
+        frame.origin.y = top - frame.height
+
+        panel.minSize = NSSize(
+            width: 280,
+            height: isCompact ? Self.compactHeight : 360
+        )
+        panel.setFrame(frame, display: true, animate: true)
     }
 
     // MARK: - 위치 기억

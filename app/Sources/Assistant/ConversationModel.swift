@@ -20,22 +20,56 @@ final class ConversationModel: ObservableObject {
     @Published var isWorking = false
 
     private let client = AgentClient()
+    private let store = ConversationStore()
+
+    /// 위 화살표로 되짚을 이전 질문들.
+    private var history: [String] = []
+    private var historyCursor: Int?
     // 데몬이 기동 시 "panel" 세션을 미리 예열해둔다. 매번 새 세션을
     // 만들면 그 예열이 버려지고 첫 질문이 다시 느려진다.
     private let sessionId = "panel"
     private var currentTask: Task<Void, Never>?
+
+    init() {
+        turns = store.load()
+        history = turns.filter { $0.role == .user }.map(\.text)
+    }
+
+    /// ↑ / ↓ 로 이전 질문 되짚기.
+    func recallPrevious() {
+        guard !history.isEmpty else { return }
+        let next = historyCursor.map { max(0, $0 - 1) } ?? history.count - 1
+        historyCursor = next
+        input = history[next]
+    }
+
+    func recallNext() {
+        guard let cursor = historyCursor else { return }
+        if cursor + 1 >= history.count {
+            historyCursor = nil
+            input = ""
+        } else {
+            historyCursor = cursor + 1
+            input = history[cursor + 1]
+        }
+    }
 
     func submit() {
         let prompt = input.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !prompt.isEmpty, !isWorking else { return }
 
         input = ""
+        history.append(prompt)
+        historyCursor = nil
         turns.append(Turn(role: .user, text: prompt))
         turns.append(Turn(role: .assistant, text: ""))
         isWorking = true
 
         currentTask = Task {
-            defer { isWorking = false }
+            defer {
+                isWorking = false
+                store.save(turns)
+            }
             do {
                 let stream = await client.send(prompt: prompt, sessionId: sessionId)
                 for try await event in stream {
@@ -56,6 +90,8 @@ final class ConversationModel: ObservableObject {
     func clear() {
         cancel()
         turns.removeAll()
+        historyCursor = nil
+        store.clear()
     }
 
     private func apply(_ event: AgentEvent) {

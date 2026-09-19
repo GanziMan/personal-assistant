@@ -23,7 +23,11 @@ struct AssistantApp: App {
                 set: { delegate.panel.isPinned = $0 }
             ))
 
+            Button("접기 / 펼치기") { delegate.panel.isCompact.toggle() }
+                .keyboardShortcut("j", modifiers: .command)
+
             Button("대화 비우기") { delegate.conversation.clear() }
+                .keyboardShortcut("k", modifiers: .command)
 
             Divider()
             // 새 빌드가 실제로 도는지 눈으로 확인하는 용도.

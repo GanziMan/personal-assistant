@@ -1,3 +1,4 @@
+import AppKit
 import SwiftUI
 
 /// 패널 전체. 아바타와 인사, 대기 화면, 대화, 제안 칩, 입력.
@@ -21,6 +22,40 @@ struct AssistantView: View {
         VStack(spacing: 0) {
             header
 
+            if panel.isCompact {
+                Spacer(minLength: 0)
+            } else {
+                content
+            }
+        }
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: Theme.panelRadius))
+        .overlay(
+            RoundedRectangle(cornerRadius: Theme.panelRadius)
+                .strokeBorder(Theme.stroke(scheme), lineWidth: 1)
+        )
+        .animation(.easeInOut(duration: 0.22), value: panel.isCompact)
+        .background {
+            // 보이지 않는 버튼으로 단축키를 건다. 패널에는 메뉴 막대가
+            // 없어서 커맨드 등록이 이 방법밖에 없다.
+            VStack {
+                Button("") { withAnimation { conversation.clear() } }
+                    .keyboardShortcut("k", modifiers: .command)
+                Button("") { panel.isCompact.toggle() }
+                    .keyboardShortcut("j", modifiers: .command)
+            }
+            .opacity(0)
+            .allowsHitTesting(false)
+        }
+        .onExitCommand { panel.hide() }
+        .task {
+            status.start()
+            inputFocused = true
+        }
+    }
+
+    private var content: some View {
+        VStack(spacing: 0) {
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
@@ -58,16 +93,6 @@ struct AssistantView: View {
             }
             inputBar
         }
-        .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.panelRadius))
-        .overlay(
-            RoundedRectangle(cornerRadius: Theme.panelRadius)
-                .strokeBorder(Theme.stroke(scheme), lineWidth: 1)
-        )
-        .task {
-            status.start()
-            inputFocused = true
-        }
     }
 
     // MARK: - 헤더
@@ -77,11 +102,10 @@ struct AssistantView: View {
             Avatar(mood: mood)
 
             VStack(alignment: .leading, spacing: 1) {
-                Text(conversation.isWorking ? "생각하는 중" : "비서")
+                Text(headerTitle)
                     .font(.system(size: 12, weight: .semibold))
-                Text(conversation.isWorking
-                     ? " "
-                     : Greeting.line(for: status.status))
+                    .lineLimit(1)
+                Text(headerSubtitle)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -95,6 +119,11 @@ struct AssistantView: View {
                 }
             }
 
+            iconButton(panel.isCompact ? "chevron.down" : "chevron.up",
+                       help: panel.isCompact ? "펼치기" : "접기") {
+                panel.isCompact.toggle()
+            }
+
             iconButton(panel.isPinned ? "pin.fill" : "pin.slash",
                        help: panel.isPinned ? "항상 위 — 끄기" : "항상 위 — 켜기",
                        active: panel.isPinned) {
@@ -104,6 +133,23 @@ struct AssistantView: View {
         .padding(.horizontal, 14)
         .padding(.top, 12)
         .padding(.bottom, 10)
+    }
+
+    /// 접었을 때는 다음 일정이 제목 자리로 올라온다.
+    private var headerTitle: String {
+        if conversation.isWorking { return "생각하는 중" }
+        if panel.isCompact, let countdown = status.status.countdown { return countdown }
+        return "비서"
+    }
+
+    private var headerSubtitle: String {
+        if conversation.isWorking { return " " }
+        if panel.isCompact {
+            return status.status.countdown == nil
+                ? "남은 일정 없음"
+                : status.status.eventTitle
+        }
+        return Greeting.line(for: status.status)
     }
 
     private func iconButton(
@@ -160,6 +206,17 @@ struct AssistantView: View {
                 .lineLimit(1...5)
                 .focused($inputFocused)
                 .onSubmit(conversation.submit)
+                .onKeyPress(.upArrow) {
+                    // 여러 줄을 편집 중이면 커서 이동이 우선이다
+                    guard !conversation.input.contains("\n") else { return .ignored }
+                    conversation.recallPrevious()
+                    return .handled
+                }
+                .onKeyPress(.downArrow) {
+                    guard !conversation.input.contains("\n") else { return .ignored }
+                    conversation.recallNext()
+                    return .handled
+                }
 
             if conversation.isWorking {
                 Button(action: conversation.cancel) {
@@ -207,17 +264,7 @@ struct TurnRow: View {
                 .frame(maxWidth: .infinity, alignment: .trailing)
 
         case .assistant:
-            HStack(alignment: .bottom, spacing: 3) {
-                if turn.text.isEmpty {
-                    ThinkingDots()
-                } else {
-                    MarkdownText(raw: turn.text)
-                }
-                if streaming && !turn.text.isEmpty {
-                    TypingCaret()
-                }
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
+            AssistantTurn(text: turn.text, streaming: streaming)
 
         case .tool:
             ToolChip(name: turn.text, running: turn.running)
@@ -236,6 +283,54 @@ struct TurnRow: View {
             .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 9))
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+}
+
+/// 답변 한 덩어리. 호버하면 복사 버튼이 나온다.
+private struct AssistantTurn: View {
+    let text: String
+    let streaming: Bool
+
+    @State private var hovering = false
+    @State private var copied = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .bottom, spacing: 3) {
+                if text.isEmpty {
+                    ThinkingDots()
+                } else {
+                    MarkdownText(raw: text)
+                }
+                if streaming && !text.isEmpty {
+                    TypingCaret()
+                }
+            }
+
+            if hovering && !streaming && !text.isEmpty {
+                Button {
+                    NSPasteboard.general.clearContents()
+                    NSPasteboard.general.setString(text, forType: .string)
+                    copied = true
+                    Task {
+                        try? await Task.sleep(for: .seconds(1.4))
+                        copied = false
+                    }
+                } label: {
+                    HStack(spacing: 3) {
+                        Image(systemName: copied ? "checkmark" : "doc.on.doc")
+                        Text(copied ? "복사됨" : "복사")
+                    }
+                    .font(.system(size: 10))
+                }
+                .buttonStyle(.plain)
+                .foregroundStyle(copied ? Color.green : Color.secondary)
+                .transition(.opacity)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onHover { hovering = $0 }
+        .animation(.easeInOut(duration: 0.15), value: hovering)
     }
 }
 

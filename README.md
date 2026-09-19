@@ -76,7 +76,15 @@ macOS TCC 가 `~/Documents` 를 보호해서 launchd 데몬이 그 안을 읽지
 
 SwiftPM 으로 빌드해 `~/Applications/Assistant.app` 을 만들고 로그인 시
 자동 실행으로 등록한다. Xcode 프로젝트는 두지 않는다 — Command Line
-Tools 만 있어도 빌드된다 (`xcrun swift` 로 부른다). ⌥Space 로 부른다.
+Tools 만 있어도 빌드된다 (`xcrun swift` 로 부른다).
+
+| 단축키 | 동작 |
+|---|---|
+| ⌥Space | 패널 열기/숨기기 |
+| Esc | 숨기기 |
+| ⌘J | 접기/펼치기 (다음 일정 한 줄만) |
+| ⌘K | 대화 비우기 |
+| ↑ / ↓ | 이전에 보낸 질문 되짚기 |
 
 번들 5MB 미만, 상주 메모리 30MB 수준. Swift 런타임은 macOS 에 내장돼
 있어 앱에 딸려오지 않는다.
