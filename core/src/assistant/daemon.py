@@ -75,6 +75,8 @@ class Daemon:
         if SOCKET_PATH.exists():
             SOCKET_PATH.unlink()
 
+        await self.agent.start()
+
         self._server = await asyncio.start_unix_server(self.handle, path=str(SOCKET_PATH))
         os.chmod(SOCKET_PATH, 0o600)  # 소유자만
         log.info("listening on %s", SOCKET_PATH)
@@ -88,6 +90,7 @@ class Daemon:
             await stop.wait()
 
         log.info("shutting down")
+        await self.agent.aclose()
         with contextlib.suppress(FileNotFoundError):
             SOCKET_PATH.unlink()
 

@@ -48,10 +48,19 @@ class AgentConfig:
     require_confirmation: bool = True
 
 
+def default_servers() -> list[dict[str, object]]:
+    """기본 MCP 서버. 레포 안의 서버를 uv 로 띄운다."""
+    return [
+        {"name": "calendar", "command": "macos-calendar-mcp", "args": []},
+        {"name": "system", "command": "macos-system-mcp", "args": []},
+    ]
+
+
 @dataclass(slots=True)
 class Config:
     models: ModelConfig = field(default_factory=ModelConfig)
     agent: AgentConfig = field(default_factory=AgentConfig)
+    servers: list[dict[str, object]] = field(default_factory=default_servers)
     timezone: str = "Asia/Seoul"
     locale: str = "ko_KR"
 
@@ -66,6 +75,7 @@ class Config:
         return cls(
             models=ModelConfig(**raw.get("models", {})),
             agent=AgentConfig(**raw.get("agent", {})),
+            servers=raw.get("servers", default_servers()),
             timezone=raw.get("timezone", "Asia/Seoul"),
             locale=raw.get("locale", "ko_KR"),
         )

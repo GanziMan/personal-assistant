@@ -1,7 +1,7 @@
 """에이전트 루프.
 
-의도 → 계획 → 도구 실행 → 관찰 → 응답. 도구 레지스트리는 P2 에서
-붙는다. 지금은 대화만 돈다.
+의도 → 계획 → 도구 실행 → 관찰 → 응답. 도구가 있으면 모델이 부르고,
+결과를 다시 모델에 먹여 반복한다. 반복 상한은 config 로 막는다.
 """
 
 from __future__ import annotations
@@ -18,6 +18,8 @@ from .llm.cloud import CloudLLM
 from .llm.router import ModelRouter, TaskKind
 from .prompts import SYSTEM
 from .protocol import Event, EventType
+from .tools import ServerSpec, ToolRegistry
+from .tools.registry import ConfirmationRequired, ToolError
 
 
 class Session:
@@ -36,8 +38,25 @@ class Agent:
         self.config = config
         self.router = ModelRouter(config.models)
         self.audit = AuditLog()
+        self.tools = ToolRegistry(
+            audit=self.audit, require_confirmation=config.agent.require_confirmation
+        )
         self._cloud: CloudLLM | None = None
         self._sessions: dict[str, Session] = {}
+
+    async def start(self) -> None:
+        specs = [
+            ServerSpec(
+                name=str(s["name"]),
+                command=str(s["command"]),
+                args=list(s.get("args", [])),  # type: ignore[arg-type]
+            )
+            for s in self.config.servers
+        ]
+        await self.tools.start(specs)
+
+    async def aclose(self) -> None:
+        await self.tools.aclose()
 
     @property
     def cloud(self) -> CloudLLM:
@@ -59,29 +78,93 @@ class Agent:
         )
 
     async def run(self, session_id: str, prompt: str) -> AsyncIterator[Event]:
-        """한 턴을 돌린다. 이벤트를 흘려보낸다."""
+        """한 턴을 돌린다. 도구 호출이 끝날 때까지 반복한다."""
         session = self.session(session_id)
         session.add("user", prompt)
 
-        route = self.router.route(TaskKind.CHAT)
-        self.audit.model_call(
-            provider=route.provider, model=route.model, reason=route.reason
+        schemas = self.tools.schemas()
+        kind = TaskKind.PLAN if schemas else TaskKind.CHAT
+        route = self.router.route(kind)
+        self.audit.model_call(provider=route.provider, model=route.model, reason=route.reason)
+
+        for _ in range(self.config.agent.max_iterations):
+            text_parts: list[str] = []
+            tool_uses: list[Any] = []
+            stop_reason = ""
+
+            try:
+                async for chunk_kind, payload in self.cloud.stream(
+                    model=route.model,
+                    system=self._system_prompt(),
+                    messages=session.messages,
+                    tools=schemas or None,
+                ):
+                    if chunk_kind == "text":
+                        text_parts.append(payload)
+                        yield Event(EventType.TEXT, session_id, payload)
+                    elif chunk_kind == "tool_use":
+                        tool_uses.append(payload)
+                    elif chunk_kind == "stop_reason":
+                        stop_reason = payload or ""
+            except Exception as exc:  # 데몬을 죽이지 않는다
+                self.audit.record("error", where="agent.run", error=repr(exc))
+                yield Event(EventType.ERROR, session_id, f"{type(exc).__name__}: {exc}")
+                return
+
+            assistant_content: list[dict[str, Any]] = []
+            if text_parts:
+                assistant_content.append({"type": "text", "text": "".join(text_parts)})
+            for block in tool_uses:
+                assistant_content.append(
+                    {"type": "tool_use", "id": block.id, "name": block.name, "input": block.input}
+                )
+            session.add("assistant", assistant_content or [{"type": "text", "text": ""}])
+
+            if stop_reason != "tool_use" or not tool_uses:
+                yield Event(EventType.DONE, session_id)
+                return
+
+            results: list[dict[str, Any]] = []
+            for block in tool_uses:
+                yield Event(
+                    EventType.TOOL_CALL, session_id, block.name, {"args": dict(block.input)}
+                )
+                output, is_error = await self._invoke(block.name, dict(block.input))
+
+                if is_error == "confirm":
+                    # 확인이 필요하면 턴을 여기서 끊는다. 사용자가 승인하면
+                    # 다음 프롬프트에서 이어간다.
+                    yield Event(
+                        EventType.CONFIRM,
+                        session_id,
+                        output,
+                        {"tool": block.name, "args": dict(block.input)},
+                    )
+                    yield Event(EventType.DONE, session_id)
+                    return
+
+                yield Event(EventType.TOOL_RESULT, session_id, output[:400], {"tool": block.name})
+                results.append(
+                    {
+                        "type": "tool_result",
+                        "tool_use_id": block.id,
+                        "content": output,
+                        "is_error": bool(is_error),
+                    }
+                )
+
+            session.add("user", results)
+
+        yield Event(
+            EventType.ERROR, session_id, f"도구 호출이 {self.config.agent.max_iterations}회를 넘었습니다."
         )
 
-        parts: list[str] = []
+    async def _invoke(self, name: str, args: dict[str, Any]) -> tuple[str, str | bool]:
+        """도구를 부른다. (출력, 오류표시) 를 돌려준다."""
         try:
-            async for kind, payload in self.cloud.stream(
-                model=route.model,
-                system=self._system_prompt(),
-                messages=session.messages,
-            ):
-                if kind == "text":
-                    parts.append(payload)
-                    yield Event(EventType.TEXT, session_id, payload)
-        except Exception as exc:  # 데몬을 죽이지 않는다
-            self.audit.record("error", where="agent.run", error=repr(exc))
-            yield Event(EventType.ERROR, session_id, f"{type(exc).__name__}: {exc}")
-            return
-
-        session.add("assistant", "".join(parts))
-        yield Event(EventType.DONE, session_id)
+            return await self.tools.call(name, args), False
+        except ConfirmationRequired as exc:
+            return f"'{exc.tool.qualified}' 실행을 승인하시겠습니까? 인자: {exc.args}", "confirm"
+        except ToolError as exc:
+            # 모델에게 돌려줘서 스스로 고치게 한다
+            return str(exc), True
