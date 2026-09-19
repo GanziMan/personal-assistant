@@ -37,6 +37,51 @@ def registered() -> list[str]:
     return sorted(_REGISTRY)
 
 
+@rule("meeting_prep")
+async def meeting_prep(tools) -> str:  # noqa: ANN001
+    """일정 시작 전에 참고할 것을 모아 패널 쪽지로 올린다.
+
+    모으는 일은 전부 조회다. 요약은 사용자가 물을 때 모델이 한다
+    (ADR-028).
+    """
+    from ..detect.notes import NoteBoard
+    from ..prep import Prep, keywords, trim
+    from ..status import lead_minutes
+
+    raw = (await tools.call("calendar__upcoming", {"within_minutes": 15})).strip()
+    board = NoteBoard()
+    if not raw:
+        board.dismiss("meeting_prep")
+        return ""
+
+    # "12분 뒤 설계 리뷰 @회의실" 에서 제목만
+    minutes = lead_minutes(raw) or 0
+    title = raw.split("분 뒤", 1)[-1].split("@", 1)[0].strip()
+
+    terms = keywords(title)
+    prep = Prep(event=title, minutes=minutes)
+
+    async def safe(name: str, args: dict) -> str:
+        try:
+            return await tools.call(name, args)
+        except Exception as exc:
+            log.debug("%s 실패: %s", name, exc)
+            return ""
+
+    if terms:
+        query = " ".join(terms)
+        prep.past = trim(await safe("memory__recall", {"query": query, "limit": 3}))
+        prep.files = trim(await safe("files__search_files", {"query": terms[0], "days": 60}))
+
+    prep.repos = trim(await safe("dev__all_status", {}), limit=2)
+
+    if prep.empty:
+        return ""
+
+    board.put("meeting_prep", prep.render())
+    return prep.render()
+
+
 @rule("work_log")
 async def work_log(tools) -> str:  # noqa: ANN001
     """오늘 한 일을 모아 한 덩어리로 만든다.

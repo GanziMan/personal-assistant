@@ -71,6 +71,15 @@ DEFAULT_JOBS: tuple[Job, ...] = (
         rule="detect",
         notify=False,  # 알림 여부는 신호의 severity 가 정한다
     ),
+    # 일정 15분 전 창에 걸리도록 5분마다 확인한다. 규칙이라 비용이 0이다.
+    Job(
+        name="meeting_prep",
+        cron="*/5 * * * *",
+        mode="rule",
+        rule="meeting_prep",
+        kind="prep",
+        notify=False,  # 쪽지로만. 알림은 upcoming_event 가 이미 한다
+    ),
     # 하루를 닫으며 오늘 한 일을 쌓는다. 쌓인 것이 분기 회고의 근거가 된다.
     Job(
         name="work_log",
