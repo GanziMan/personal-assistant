@@ -8,6 +8,9 @@ struct Turn: Identifiable {
     let id = UUID()
     let role: Role
     var text: String
+
+    /// 도구 줄에서만 쓴다. 도는 동안 스피너, 끝나면 체크.
+    var running: Bool = false
 }
 
 @MainActor
@@ -41,6 +44,7 @@ final class ConversationModel: ObservableObject {
             } catch {
                 appendError(error.localizedDescription)
             }
+            finishRunningTools()
         }
     }
 
@@ -63,8 +67,13 @@ final class ConversationModel: ObservableObject {
             }
 
         case .toolCall:
-            // 진행 중인 답변 줄 바로 앞에 끼워넣는다
-            turns.insert(Turn(role: .tool, text: event.text), at: max(turns.count - 1, 0))
+            // 앞선 도구 호출은 끝난 것으로 본다 — SDK 가 완료 신호를
+            // 따로 주지 않으므로, 다음 호출이나 턴 종료를 신호로 쓴다.
+            finishRunningTools()
+            turns.insert(
+                Turn(role: .tool, text: event.text, running: true),
+                at: max(turns.count - 1, 0)
+            )
 
         case .confirm:
             turns.append(Turn(role: .error, text: event.text))
@@ -72,8 +81,17 @@ final class ConversationModel: ObservableObject {
         case .error:
             appendError(event.text)
 
-        case .thinking, .toolResult, .done, .pong, .statusResult, .unknown:
+        case .done:
+            finishRunningTools()
+
+        case .thinking, .toolResult, .pong, .statusResult, .unknown:
             break
+        }
+    }
+
+    private func finishRunningTools() {
+        for index in turns.indices where turns[index].running {
+            turns[index].running = false
         }
     }
 

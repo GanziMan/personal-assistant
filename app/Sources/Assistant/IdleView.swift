@@ -104,11 +104,7 @@ struct SectionCard<Content: View>: View {
             content
         }
         .padding(12)
-        .background(.quaternary.opacity(0.35), in: RoundedRectangle(cornerRadius: 11))
-        .overlay(
-            RoundedRectangle(cornerRadius: 11)
-                .strokeBorder(.white.opacity(0.06), lineWidth: 1)
-        )
+        .cardBackground()
     }
 }
 

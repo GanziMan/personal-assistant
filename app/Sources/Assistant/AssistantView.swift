@@ -6,6 +6,7 @@ struct AssistantView: View {
     @ObservedObject var status: StatusModel
     @ObservedObject var panel: PanelController
 
+    @Environment(\.colorScheme) private var scheme
     @FocusState private var inputFocused: Bool
 
     private var hasConversation: Bool { !conversation.turns.isEmpty }
@@ -32,9 +33,13 @@ struct AssistantView: View {
                         }
 
                         ForEach(conversation.turns) { turn in
-                            TurnRow(turn: turn)
-                                .id(turn.id)
-                                .transition(.opacity)
+                            TurnRow(
+                                turn: turn,
+                                streaming: conversation.isWorking
+                                    && turn.id == conversation.turns.last?.id
+                            )
+                            .id(turn.id)
+                            .transition(.opacity)
                         }
                     }
                     .padding(.horizontal, 15)
@@ -54,10 +59,10 @@ struct AssistantView: View {
             inputBar
         }
         .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 15))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.panelRadius))
         .overlay(
-            RoundedRectangle(cornerRadius: 15)
-                .strokeBorder(.white.opacity(0.08), lineWidth: 1)
+            RoundedRectangle(cornerRadius: Theme.panelRadius)
+                .strokeBorder(Theme.stroke(scheme), lineWidth: 1)
         )
         .task {
             status.start()
@@ -133,8 +138,8 @@ struct AssistantView: View {
                         }
                         .padding(.horizontal, 9)
                         .padding(.vertical, 5)
-                        .background(.quaternary.opacity(0.5), in: Capsule())
-                        .overlay(Capsule().strokeBorder(.white.opacity(0.07), lineWidth: 1))
+                        .background(Theme.cardFill(scheme), in: Capsule())
+                        .overlay(Capsule().strokeBorder(Theme.stroke(scheme), lineWidth: 1))
                     }
                     .buttonStyle(.plain)
                     .foregroundStyle(.secondary)
@@ -177,11 +182,7 @@ struct AssistantView: View {
         }
         .padding(.horizontal, 12)
         .padding(.vertical, 9)
-        .background(.quaternary.opacity(0.4), in: RoundedRectangle(cornerRadius: 11))
-        .overlay(
-            RoundedRectangle(cornerRadius: 11)
-                .strokeBorder(.white.opacity(0.07), lineWidth: 1)
-        )
+        .cardBackground()
         .padding(.horizontal, 12)
         .padding(.bottom, 12)
         .padding(.top, 4)
@@ -192,6 +193,7 @@ struct AssistantView: View {
 
 struct TurnRow: View {
     let turn: Turn
+    var streaming: Bool = false
 
     var body: some View {
         switch turn.role {
@@ -205,24 +207,21 @@ struct TurnRow: View {
                 .frame(maxWidth: .infinity, alignment: .trailing)
 
         case .assistant:
-            Text(turn.text.isEmpty ? "…" : turn.text)
-                .font(.system(size: 13))
-                .textSelection(.enabled)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
+            HStack(alignment: .bottom, spacing: 3) {
+                if turn.text.isEmpty {
+                    ThinkingDots()
+                } else {
+                    MarkdownText(raw: turn.text)
+                }
+                if streaming && !turn.text.isEmpty {
+                    TypingCaret()
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
 
         case .tool:
-            HStack(spacing: 5) {
-                Image(systemName: "wrench.and.screwdriver")
-                    .font(.system(size: 8))
-                Text(toolLabel(turn.text))
-                    .font(.system(size: 10))
-            }
-            .foregroundStyle(.tertiary)
-            .padding(.horizontal, 7)
-            .padding(.vertical, 3)
-            .background(.quaternary.opacity(0.3), in: Capsule())
-            .frame(maxWidth: .infinity, alignment: .leading)
+            ToolChip(name: turn.text, running: turn.running)
+                .frame(maxWidth: .infinity, alignment: .leading)
 
         case .error:
             HStack(alignment: .top, spacing: 6) {
@@ -238,13 +237,85 @@ struct TurnRow: View {
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }
+}
+
+/// 도구 호출 하나. 도는 동안 스피너, 끝나면 체크.
+private struct ToolChip: View {
+    let name: String
+    let running: Bool
+
+    var body: some View {
+        HStack(spacing: 5) {
+            if running {
+                ProgressView()
+                    .controlSize(.mini)
+                    .scaleEffect(0.6)
+                    .frame(width: 9, height: 9)
+            } else {
+                Image(systemName: "checkmark")
+                    .font(.system(size: 8, weight: .bold))
+                    .foregroundStyle(.green)
+            }
+            Text(label)
+                .font(.system(size: 10))
+        }
+        .foregroundStyle(.tertiary)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(.quaternary.opacity(0.3), in: Capsule())
+        .animation(.easeInOut(duration: 0.2), value: running)
+    }
 
     /// "mcp__calendar__list_events" 를 "calendar · list events" 로.
-    private func toolLabel(_ raw: String) -> String {
-        let parts = raw.components(separatedBy: "__").filter { !$0.isEmpty }
-        guard parts.count >= 2 else { return raw }
-        let server = parts[parts.count - 2]
-        let tool = parts[parts.count - 1].replacingOccurrences(of: "_", with: " ")
-        return "\(server) · \(tool)"
+    private var label: String {
+        let parts = name.components(separatedBy: "__").filter { !$0.isEmpty }
+        guard parts.count >= 2 else { return name }
+        return "\(parts[parts.count - 2]) · "
+            + parts[parts.count - 1].replacingOccurrences(of: "_", with: " ")
+    }
+}
+
+/// 스트리밍 중 글자 끝에서 깜빡이는 커서.
+private struct TypingCaret: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var on = true
+
+    var body: some View {
+        RoundedRectangle(cornerRadius: 1)
+            .fill(Color.accentColor)
+            .frame(width: 2, height: 14)
+            .opacity(on ? 1 : 0.15)
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(.easeInOut(duration: 0.55).repeatForever()) { on = false }
+            }
+    }
+}
+
+/// 첫 글자가 오기 전. 빈 줄만 있으면 멈춘 것처럼 보인다.
+private struct ThinkingDots: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var phase = 0.0
+
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(0..<3, id: \.self) { index in
+                Circle()
+                    .fill(.secondary)
+                    .frame(width: 5, height: 5)
+                    .opacity(opacity(index))
+            }
+        }
+        .padding(.vertical, 4)
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.linear(duration: 1.2).repeatForever(autoreverses: false)) {
+                phase = 3
+            }
+        }
+    }
+
+    private func opacity(_ index: Int) -> Double {
+        reduceMotion ? 0.5 : (Int(phase) % 3 == index ? 1.0 : 0.3)
     }
 }
