@@ -54,17 +54,14 @@ async def _fetch(client: httpx.AsyncClient, feed) -> tuple[str, list]:  # noqa: 
 
 
 @mcp.tool()
-def fetch_recent(hours: int = 24, per_feed: int = 5) -> str:
+async def fetch_recent(hours: int = 24, per_feed: int = 5) -> str:
     """구독 피드에서 최근 항목을 모은다."""
     feeds = _store.load()
     if not feeds:
         return "구독 중인 피드가 없습니다."
 
-    async def gather() -> list[tuple[str, list]]:
-        async with httpx.AsyncClient(timeout=TIMEOUT) as client:
-            return list(await asyncio.gather(*(_fetch(client, f) for f in feeds)))
-
-    results = asyncio.run(gather())
+    async with httpx.AsyncClient(timeout=TIMEOUT) as client:
+        results = list(await asyncio.gather(*(_fetch(client, f) for f in feeds)))
 
     blocks = []
     failed = []
