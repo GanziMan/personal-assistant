@@ -5,9 +5,13 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 from typing import Any
 
-from anthropic import AsyncAnthropic
+from anthropic import AsyncAnthropic, AuthenticationError
 
 from ..keychain import anthropic_api_key
+
+
+class CloudAuthError(RuntimeError):
+    """키가 틀렸다. 원본 401 대신 고칠 방법을 알려준다."""
 
 
 class CloudLLM:
@@ -38,13 +42,33 @@ class CloudLLM:
         if tools:
             kwargs["tools"] = tools
 
-        async with self._client.messages.stream(**kwargs) as stream:
-            async for event in stream:
-                if event.type == "content_block_delta" and event.delta.type == "text_delta":
-                    yield "text", event.delta.text
+        try:
+            stream_ctx = self._client.messages.stream(**kwargs)
+        except AuthenticationError as exc:
+            raise CloudAuthError(_AUTH_HELP) from exc
 
-            final = await stream.get_final_message()
-            for block in final.content:
-                if block.type == "tool_use":
-                    yield "tool_use", block
-            yield "stop_reason", final.stop_reason
+        try:
+            async with stream_ctx as stream:
+                async for event in stream:
+                    if event.type == "content_block_delta" and event.delta.type == "text_delta":
+                        yield "text", event.delta.text
+
+                final = await stream.get_final_message()
+                for block in final.content:
+                    if block.type == "tool_use":
+                        yield "tool_use", block
+                yield "stop_reason", final.stop_reason
+        except AuthenticationError as exc:
+            raise CloudAuthError(_AUTH_HELP) from exc
+
+
+_AUTH_HELP = (
+    "Claude API 키가 유효하지 않습니다. 키체인의 값을 확인하세요.\n"
+    "  security find-generic-password -s assistant-anthropic -w | cut -c1-12\n"
+    "  (sk-ant-api03 으로 시작해야 합니다)\n"
+    "다시 넣으려면:\n"
+    "  security delete-generic-password -s assistant-anthropic\n"
+    '  security add-generic-password -a "$USER" -s assistant-anthropic -w\n'
+    "키를 바꾼 뒤에는 데몬을 재시작해야 합니다 (키는 프로세스 안에 캐시됩니다):\n"
+    "  launchctl kickstart -k gui/$UID/com.assistant.daemon"
+)

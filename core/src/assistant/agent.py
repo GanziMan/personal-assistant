@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo
 
 from .audit import AuditLog
 from .config import Config
-from .llm.cloud import CloudLLM
+from .llm.cloud import CloudAuthError, CloudLLM
 from .llm.router import ModelRouter, TaskKind
 from .prompts import SYSTEM
 from .protocol import Event, EventType
@@ -130,6 +130,11 @@ class Agent:
                         tool_uses.append(payload)
                     elif chunk_kind == "stop_reason":
                         stop_reason = payload or ""
+            except CloudAuthError as exc:
+                # 이미 사람이 읽을 수 있는 안내다. 타입 이름을 덧붙이지 않는다.
+                self.audit.record("error", where="agent.run", error="auth")
+                yield Event(EventType.ERROR, session_id, str(exc))
+                return
             except Exception as exc:  # 데몬을 죽이지 않는다
                 self.audit.record("error", where="agent.run", error=repr(exc))
                 yield Event(EventType.ERROR, session_id, f"{type(exc).__name__}: {exc}")
