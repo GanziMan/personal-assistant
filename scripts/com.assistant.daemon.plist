@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+  "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.assistant.daemon</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__VENV__/bin/assistantd</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+
+    <!-- 크래시 루프를 막는다 -->
+    <key>ThrottleInterval</key>
+    <integer>10</integer>
+
+    <key>StandardOutPath</key>
+    <string>__HOME__/.assistant/logs/daemon.out.log</string>
+    <key>StandardErrorPath</key>
+    <string>__HOME__/.assistant/logs/daemon.err.log</string>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>ASSISTANT_LOG</key>
+        <string>INFO</string>
+    </dict>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>
