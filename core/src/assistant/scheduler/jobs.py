@@ -80,6 +80,15 @@ DEFAULT_JOBS: tuple[Job, ...] = (
         kind="prep",
         notify=False,  # 쪽지로만. 알림은 upcoming_event 가 이미 한다
     ),
+    # 새벽에 한 번. 바뀐 파일만 읽으므로 보통 몇 초다.
+    Job(
+        name="reindex_docs",
+        cron="0 4 * * *",
+        mode="rule",
+        rule="reindex_docs",
+        kind="index",
+        notify=False,
+    ),
     # 하루를 닫으며 오늘 한 일을 쌓는다. 쌓인 것이 분기 회고의 근거가 된다.
     Job(
         name="work_log",

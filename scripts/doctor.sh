@@ -27,9 +27,18 @@ else
 fi
 
 hdr "MCP 서버 실행 파일"
-for s in macos-calendar-mcp macos-system-mcp macos-files-mcp feeds-mcp dev-mcp memory-mcp; do
+for s in macos-calendar-mcp macos-system-mcp macos-files-mcp feeds-mcp dev-mcp memory-mcp docsearch-mcp; do
   [[ -x "$VENV/bin/$s" ]] && ok "$s" || no "$s (install.sh 재실행 필요)"
 done
+
+hdr "로컬 임베딩 (Ollama)"
+if curl -fsS --max-time 3 http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
+  ok "Ollama 응답함"
+  curl -fsS http://127.0.0.1:11434/api/tags 2>/dev/null | grep -q nomic-embed-text \
+    && ok "nomic-embed-text 있음" || no "nomic-embed-text 없음 (ollama pull nomic-embed-text)"
+else
+  no "Ollama 응답 없음 (brew services start ollama)"
+fi
 
 hdr "메뉴바 앱"
 app_pid=$(pgrep -f "$HOME/Applications/Assistant.app" | head -1)

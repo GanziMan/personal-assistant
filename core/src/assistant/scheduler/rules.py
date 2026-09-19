@@ -37,6 +37,18 @@ def registered() -> list[str]:
     return sorted(_REGISTRY)
 
 
+@rule("reindex_docs")
+async def reindex_docs(tools) -> str:  # noqa: ANN001
+    """문서 색인을 갱신한다. 바뀐 파일만 다시 읽으므로 대개 금방 끝난다."""
+    try:
+        result = await tools.call("docsearch__reindex", {})
+    except Exception as exc:
+        log.debug("색인 실패: %s", exc)
+        return ""
+    # 새로 읽은 게 없으면 조용히 넘어간다
+    return "" if "새로 읽은 문서 0개" in result else result
+
+
 @rule("meeting_prep")
 async def meeting_prep(tools) -> str:  # noqa: ANN001
     """일정 시작 전에 참고할 것을 모아 패널 쪽지로 올린다.

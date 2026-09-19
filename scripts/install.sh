@@ -55,7 +55,8 @@ uv pip install --python "$VENV/bin/python" -q \
   "$REPO/mcp-servers/macos-files" \
   "$REPO/mcp-servers/feeds" \
   "$REPO/mcp-servers/dev" \
-  "$REPO/mcp-servers/memory"
+  "$REPO/mcp-servers/memory" \
+  "$REPO/mcp-servers/docsearch"
 
 [[ -x "$VENV/bin/assistantd" ]] || die "assistantd 진입점이 만들어지지 않았습니다."
 
@@ -76,6 +77,13 @@ if ! claude -p "ok" >/dev/null 2>&1; then
   die "로그인되지 않았습니다."
 fi
 echo "  구독 계정으로 동작합니다. API 키는 필요 없습니다."
+
+if command -v ollama >/dev/null; then
+  say "Ollama 백그라운드 서비스"
+  brew services list 2>/dev/null | grep -q "^ollama.*started" \
+    || brew services start ollama >/dev/null 2>&1 \
+    || echo "  (수동 실행 필요: ollama serve &)"
+fi
 
 say "launchd 등록"
 mkdir -p "$AGENT_DIR"
