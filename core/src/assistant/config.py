@@ -7,6 +7,7 @@
 from __future__ import annotations
 
 import os
+import sys
 import tomllib
 from dataclasses import dataclass, field
 from pathlib import Path
@@ -58,10 +59,16 @@ class AgentConfig:
 
 
 def default_servers() -> list[dict[str, object]]:
-    """기본 MCP 서버. 레포 안의 서버를 uv 로 띄운다."""
+    """기본 MCP 서버.
+
+    명령을 절대 경로로 준다. 데몬을 띄우는 launchd 도, SDK 가 띄우는
+    자식 프로세스도 PATH 가 우리 venv 를 모른다 — 이름만 주면
+    '실행 파일을 찾지 못함' 으로 조용히 실패한다.
+    """
+    bindir = Path(sys.executable).parent
     return [
-        {"name": "calendar", "command": "macos-calendar-mcp", "args": []},
-        {"name": "system", "command": "macos-system-mcp", "args": []},
+        {"name": "calendar", "command": str(bindir / "macos-calendar-mcp"), "args": []},
+        {"name": "system", "command": str(bindir / "macos-system-mcp"), "args": []},
     ]
 
 
