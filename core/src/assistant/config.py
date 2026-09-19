@@ -76,6 +76,7 @@ def default_servers() -> list[dict[str, object]]:
         {"name": "system", "command": str(bindir / "macos-system-mcp"), "args": []},
         {"name": "files", "command": str(bindir / "macos-files-mcp"), "args": []},
         {"name": "feeds", "command": str(bindir / "feeds-mcp"), "args": []},
+        {"name": "dev", "command": str(bindir / "dev-mcp"), "args": []},
     ]
 
 
