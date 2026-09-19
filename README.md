@@ -49,3 +49,11 @@ docs/         설계 문서
 brew install uv ollama
 ./scripts/install.sh
 ```
+
+런타임(가상환경·기억 DB·로그)은 레포가 아니라 `~/.assistant` 에 만들어진다.
+macOS TCC 가 `~/Documents` 를 보호해서 launchd 데몬이 그 안을 읽지 못하기
+때문이다 (ADR-006). 코드를 고친 뒤에는 `install.sh` 를 다시 실행한다.
+
+```
+~/.assistant/venv/bin/assistant "오늘 일정 뭐야"
+```

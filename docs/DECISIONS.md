@@ -60,3 +60,24 @@
 **이유.** 비서가 신뢰를 잃는 경로는 못 알아듣는 것이 아니라, 알아들은
 척하고 뭔가를 지우는 것이다. 신뢰를 쌓은 다음 화이트리스트로 하나씩
 자동화를 푼다.
+
+---
+
+## ADR-006 — 런타임을 레포 밖(~/.assistant)에 둔다
+
+**결정.** 가상환경과 데이터를 `~/.assistant` 아래에 만들고, 패키지는
+editable 이 아닌 일반 설치로 넣는다. 레포에는 소스만 남는다.
+
+**이유.** macOS 의 TCC 가 `~/Documents`, `~/Desktop`, `~/Downloads` 를
+보호한다. Terminal 에서 실행할 때는 Terminal 에 부여된 권한을 빌려 쓰지만,
+launchd 로 뜬 데몬에는 그 권한이 없다. 레포가 `~/Documents` 에 있으면
+데몬이 자기 venv 의 `pyvenv.cfg` 조차 읽지 못하고 기동 즉시 죽는다.
+
+    PermissionError: [Errno 1] Operation not permitted:
+      '/Users/…/Documents/personal-assistant/core/.venv/pyvenv.cfg'
+
+**버린 것.** 데몬 바이너리에 전체 디스크 접근 권한을 주는 방법. 설치
+과정에 수동 단계가 들어가고, 비서에게 필요 이상의 권한을 영구히 주게 된다.
+
+**대가.** editable 설치가 아니라서 코드를 고치면 `install.sh` 를 다시
+실행해야 한다. 개발 중에는 번거롭지만, 설치가 조용히 실패하는 것보다 낫다.
