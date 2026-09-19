@@ -20,12 +20,21 @@ die() { printf '\033[31m✗\033[0m %s\n' "$1" >&2; exit 1; }
 [[ "$(uname -s)" == "Darwin" ]] || die "macOS 전용입니다."
 command -v uv >/dev/null || die "uv 가 필요합니다:  brew install uv"
 
+say "기존 데몬 정지"
+# venv 를 건드리기 전에 멈춰야 한다. 실행 중인 인터프리터 아래를
+# 갈아엎으면 이후 launchctl 동작이 예측 불가능해진다.
+launchctl bootout "gui/$UID/$LABEL" 2>/dev/null || true
+for _ in $(seq 1 20); do
+  launchctl print "gui/$UID/$LABEL" >/dev/null 2>&1 || break
+  sleep 0.25
+done
+
 say "런타임 디렉터리 준비"
 mkdir -p "$RUNTIME/logs"
 chmod 700 "$RUNTIME"
 
 say "가상환경 생성 ($VENV)"
-uv venv --python 3.12 "$VENV" >/dev/null
+uv venv --python 3.12 --allow-existing "$VENV" >/dev/null
 
 say "패키지 설치"
 # editable(-e) 로 넣지 않는다. editable 이면 런타임에 레포 경로를 읽어야
@@ -64,9 +73,13 @@ DAEMON_PATH="$DAEMON_PATH:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sb
 sed -e "s|__VENV__|$VENV|g" -e "s|__HOME__|$HOME|g" -e "s|__PATH__|$DAEMON_PATH|g" \
     "$REPO/scripts/com.assistant.daemon.plist" > "$PLIST"
 
-launchctl bootout "gui/$UID/$LABEL" 2>/dev/null || true
-launchctl bootstrap "gui/$UID" "$PLIST"
-launchctl kickstart -k "gui/$UID/$LABEL"
+# 이미 등록돼 있으면 bootstrap 이 "Input/output error (5)" 로 실패한다.
+# 실패가 아니라 이미 있는 것이므로 kickstart 로 이어간다.
+if ! launchctl bootstrap "gui/$UID" "$PLIST" 2>/dev/null; then
+  echo "  (이미 등록돼 있습니다 — 재시작합니다)"
+fi
+launchctl kickstart -k "gui/$UID/$LABEL" >/dev/null 2>&1 || \
+  die "데몬을 시작할 수 없습니다.  launchctl print gui/\$UID/$LABEL"
 
 for _ in $(seq 1 15); do
   [[ -S "$RUNTIME/agent.sock" ]] && break
