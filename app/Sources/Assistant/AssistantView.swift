@@ -10,7 +10,7 @@ struct AssistantView: View {
 
     private var hasConversation: Bool { !conversation.turns.isEmpty }
 
-    private var avatarState: Avatar.State {
+    private var mood: AvatarMood {
         if conversation.isWorking { return .thinking }
         if let m = status.status.nextEventMinutes, m <= 15 { return .alert }
         return .idle
@@ -69,7 +69,7 @@ struct AssistantView: View {
 
     private var header: some View {
         HStack(alignment: .center, spacing: 10) {
-            Avatar(state: avatarState)
+            Avatar(mood: mood)
 
             VStack(alignment: .leading, spacing: 1) {
                 Text(conversation.isWorking ? "생각하는 중" : "비서")
