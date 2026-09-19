@@ -5,11 +5,11 @@ from __future__ import annotations
 import subprocess
 import sys
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 
 from .notify import send as send_notification
 
-mcp = FastMCP("macos-system")
+mcp = MCPServer("macos-system")
 
 
 @mcp.tool()

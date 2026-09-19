@@ -3,7 +3,7 @@ name = "macos-system-mcp"
 version = "0.1.0"
 description = "알림·클립보드·앱 실행·단축어 MCP 서버"
 requires-python = ">=3.12"
-dependencies = ["mcp>=1.2"]
+dependencies = ["mcp>=2,<3"]
 
 [project.scripts]
 macos-system-mcp = "macos_system.server:main"

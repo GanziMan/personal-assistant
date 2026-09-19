@@ -69,7 +69,7 @@ class ToolRegistry:
                 server=spec.name,
                 name=tool.name,
                 description=tool.description or "",
-                schema=tool.inputSchema or {"type": "object", "properties": {}},
+                schema=tool.input_schema or {"type": "object", "properties": {}},
             )
             self._tools[ts.qualified] = ts
 
@@ -121,8 +121,8 @@ class ToolRegistry:
         text = "\n".join(
             block.text for block in result.content if getattr(block, "type", "") == "text"
         )
-        self.audit.tool_call(name=qualified, args=args, ok=not result.isError)
+        self.audit.tool_call(name=qualified, args=args, ok=not result.is_error)
 
-        if result.isError:
+        if result.is_error:
             raise ToolError(text or f"{qualified} 가 오류를 반환했습니다")
         return text

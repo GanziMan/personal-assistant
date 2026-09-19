@@ -9,11 +9,11 @@ from __future__ import annotations
 import sys
 from datetime import datetime
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 
 from .dates import DateParseError, resolve_range
 
-mcp = FastMCP("macos-calendar")
+mcp = MCPServer("macos-calendar")
 
 
 def _store():  # noqa: ANN202

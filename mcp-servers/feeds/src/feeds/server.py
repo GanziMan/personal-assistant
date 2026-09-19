@@ -6,12 +6,12 @@ import asyncio
 import sys
 
 import httpx
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 
 from .parse import parse, recent
 from .store import FeedStore
 
-mcp = FastMCP("feeds")
+mcp = MCPServer("feeds")
 _store = FeedStore()
 
 TIMEOUT = 15.0

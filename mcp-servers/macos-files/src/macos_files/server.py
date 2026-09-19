@@ -11,12 +11,12 @@ import sys
 import time
 from pathlib import Path
 
-from mcp.server.fastmcp import FastMCP
+from mcp.server.mcpserver import MCPServer
 
 from . import inspect as ins
 from .paths import Boundary, PathDenied, from_env
 
-mcp = FastMCP("macos-files")
+mcp = MCPServer("macos-files")
 _boundary: Boundary | None = None
 
 
