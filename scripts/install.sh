@@ -14,6 +14,9 @@ AGENT_DIR="$HOME/Library/LaunchAgents"
 PLIST="$AGENT_DIR/com.assistant.daemon.plist"
 LABEL="com.assistant.daemon"
 
+CLEAN=0
+[[ "${1:-}" == "--clean" ]] && CLEAN=1
+
 say() { printf '\033[1m▸\033[0m %s\n' "$1"; }
 die() { printf '\033[31m✗\033[0m %s\n' "$1" >&2; exit 1; }
 
@@ -33,7 +36,13 @@ say "런타임 디렉터리 준비"
 mkdir -p "$RUNTIME/logs"
 chmod 700 "$RUNTIME"
 
-say "가상환경 생성 ($VENV)"
+if (( CLEAN )); then
+  say "가상환경 삭제 후 재생성"
+  # 기억 DB·설정·로그는 건드리지 않는다. venv 만 민다.
+  rm -rf "$VENV"
+else
+  say "가상환경 준비 ($VENV)"
+fi
 uv venv --python 3.12 --allow-existing "$VENV" >/dev/null
 
 say "패키지 설치"
@@ -97,6 +106,7 @@ if [[ -S "$RUNTIME/agent.sock" ]]; then
   echo "  재시작:  launchctl kickstart -k gui/\$UID/$LABEL"
   echo
   echo "  코드를 고친 뒤에는 이 스크립트를 다시 실행하세요 (editable 설치가 아닙니다)."
+  echo "  깨끗하게 다시 깔려면:  ./scripts/install.sh --clean"
 else
   echo
   echo "--- daemon.err.log (마지막 30줄) ---"
