@@ -19,7 +19,7 @@ final class StatusModel: ObservableObject {
         timer = Task { [weak self] in
             while !Task.isCancelled {
                 await self?.refresh()
-                let seconds = await self?.nextInterval() ?? 60
+                let seconds = self?.nextInterval() ?? 60
                 try? await Task.sleep(for: .seconds(seconds))
             }
         }

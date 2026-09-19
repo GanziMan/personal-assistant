@@ -31,7 +31,7 @@ actor AgentClient {
 
     // MARK: - 저수준 연결
 
-    private static func connect(to path: String) -> Int32? {
+    private static func openSocket(at path: String) -> Int32? {
         let fd = socket(AF_UNIX, SOCK_STREAM, 0)
         guard fd >= 0 else { return nil }
 
@@ -49,7 +49,9 @@ actor AgentClient {
 
         let size = socklen_t(MemoryLayout<sockaddr_un>.size)
         let ok = withUnsafePointer(to: &addr) { p in
-            p.withMemoryRebound(to: sockaddr.self, capacity: 1) { connect(fd, $0, size) }
+            p.withMemoryRebound(to: sockaddr.self, capacity: 1) {
+                Darwin.connect(fd, $0, size)
+            }
         }
         if ok != 0 { close(fd); return nil }
         return fd
@@ -92,7 +94,7 @@ actor AgentClient {
         let path = socketPath
         return AsyncThrowingStream { continuation in
             let task = Task.detached(priority: .userInitiated) {
-                guard let fd = AgentClient.connect(to: path) else {
+                guard let fd = AgentClient.openSocket(at: path) else {
                     continuation.finish(throwing: Failure.notRunning)
                     return
                 }
@@ -118,7 +120,7 @@ actor AgentClient {
         let path = socketPath
         return await withCheckedContinuation { continuation in
             Task.detached(priority: .utility) {
-                guard let fd = AgentClient.connect(to: path) else {
+                guard let fd = AgentClient.openSocket(at: path) else {
                     continuation.resume(returning: nil)
                     return
                 }
