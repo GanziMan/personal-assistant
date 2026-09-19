@@ -42,7 +42,8 @@ say "패키지 설치"
 uv pip install --python "$VENV/bin/python" -q \
   "$REPO/core" \
   "$REPO/mcp-servers/macos-calendar" \
-  "$REPO/mcp-servers/macos-system"
+  "$REPO/mcp-servers/macos-system" \
+  "$REPO/mcp-servers/macos-files"
 
 [[ -x "$VENV/bin/assistantd" ]] || die "assistantd 진입점이 만들어지지 않았습니다."
 
