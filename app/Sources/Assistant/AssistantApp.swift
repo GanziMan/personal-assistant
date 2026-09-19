@@ -26,6 +26,9 @@ struct AssistantApp: App {
             Button("대화 비우기") { delegate.conversation.clear() }
 
             Divider()
+            // 새 빌드가 실제로 도는지 눈으로 확인하는 용도.
+            // 구버전이 살아 있으면 여기 시각이 안 바뀐다.
+            Text("빌드 \(AppInfo.buildStamp)")
             Button("종료") { NSApp.terminate(nil) }
         } label: {
             Image(systemName: "sparkle")
@@ -54,4 +57,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             AssistantView(conversation: conversation, status: status, panel: panel)
         }
     }
+}
+
+
+enum AppInfo {
+    /// 실행 파일의 수정 시각. 번들을 다시 조립할 때마다 바뀐다.
+    static let buildStamp: String = {
+        let path = Bundle.main.executablePath ?? ""
+        let date = (try? FileManager.default.attributesOfItem(atPath: path)[.modificationDate]) as? Date
+        let formatter = DateFormatter()
+        formatter.dateFormat = "MM/dd HH:mm"
+        return date.map(formatter.string(from:)) ?? "?"
+    }()
 }

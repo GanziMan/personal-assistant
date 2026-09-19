@@ -14,7 +14,8 @@ hdr "데몬"
 if [[ -S "$RUNTIME/agent.sock" ]]; then ok "소켓 있음"; else no "소켓 없음"; fi
 state=$(launchctl print "gui/$UID/$LABEL" 2>/dev/null | awk -F'= ' '/^\tstate/{print $2}')
 [[ -n "$state" ]] && ok "서비스 상태: $state" || no "서비스가 등록되지 않음"
-pid=$(pgrep -f assistantd | head -1)
+# 이름만 보면 macOS 자체 Siri 데몬(assistantd)에 걸린다. 경로로 찾는다.
+pid=$(pgrep -f "$VENV/bin/assistantd" | head -1)
 [[ -n "$pid" ]] && ok "프로세스 PID $pid" || no "프로세스 없음"
 
 hdr "구독 백엔드"
@@ -31,7 +32,14 @@ for s in macos-calendar-mcp macos-system-mcp macos-files-mcp feeds-mcp dev-mcp; 
 done
 
 hdr "메뉴바 앱"
-pgrep -f "Assistant" >/dev/null && ok "실행 중" || no "실행 중 아님 (build-app.sh)"
+app_pid=$(pgrep -f "$HOME/Applications/Assistant.app" | head -1)
+if [[ -n "$app_pid" ]]; then
+  ok "실행 중 (PID $app_pid)"
+  built=$(stat -f "%Sm" -t "%m/%d %H:%M" "$HOME/Applications/Assistant.app/Contents/MacOS/Assistant" 2>/dev/null)
+  [[ -n "$built" ]] && echo "    빌드 시각: $built"
+else
+  no "실행 중 아님 (build-app.sh)"
+fi
 
 hdr "보호 폴더 접근 (TCC)"
 for d in Downloads Documents Desktop; do

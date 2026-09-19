@@ -28,6 +28,12 @@ cd "$REPO/app"
 BINARY="$("${SWIFT[@]}" build -c release --show-bin-path)/$APP_NAME"
 [[ -x "$BINARY" ]] || die "실행 파일이 만들어지지 않았습니다: $BINARY"
 
+say "기존 앱 종료"
+# 이미 떠 있는 구버전이 살아 있으면 새로 open 해도 그게 계속 보인다
+launchctl bootout "gui/$UID/$LABEL" 2>/dev/null || true
+pkill -f "$BUNDLE/Contents/MacOS/$APP_NAME" 2>/dev/null || true
+sleep 1
+
 say "번들 조립 ($BUNDLE)"
 rm -rf "$BUNDLE"
 mkdir -p "$BUNDLE/Contents/MacOS" "$BUNDLE/Contents/Resources"
@@ -60,8 +66,7 @@ cat > "$PLIST" <<PLISTEOF
 </plist>
 PLISTEOF
 
-launchctl bootout "gui/$UID/$LABEL" 2>/dev/null || true
-launchctl bootstrap "gui/$UID" "$PLIST"
+launchctl bootstrap "gui/$UID" "$PLIST" 2>/dev/null || true
 
 say "실행"
 open "$BUNDLE"
