@@ -7,9 +7,25 @@ import sys
 
 from mcp.server.mcpserver import MCPServer
 
+from .clipboard import ClipboardHistory, is_concealed, looks_secret
 from .notify import send as send_notification
 
 mcp = MCPServer("macos-system")
+
+# 이력은 이 프로세스 메모리에만 산다. 디스크에 남기지 않는다.
+_history = ClipboardHistory()
+
+
+def _pbpaste() -> str:
+    r = subprocess.run(["pbpaste"], capture_output=True, text=True, timeout=5, check=False)
+    return r.stdout or ""
+
+
+def _capture_current() -> None:
+    """읽을 때마다 이력에 담는다. 별도 감시 프로세스를 두지 않는다."""
+    if is_concealed():
+        return
+    _history.capture(_pbpaste())
 
 
 @mcp.tool()
@@ -20,9 +36,46 @@ def send_alert(title: str, message: str, subtitle: str = "", sound: bool = False
 
 @mcp.tool()
 def read_clipboard() -> str:
-    """클립보드의 텍스트를 읽는다."""
-    r = subprocess.run(["pbpaste"], capture_output=True, text=True, timeout=5, check=False)
-    return r.stdout or "(클립보드가 비어 있습니다)"
+    """클립보드의 텍스트를 읽는다. 방금 복사한 것을 물을 때 쓴다."""
+    if is_concealed():
+        return "(비밀번호 관리자가 표시한 항목이라 읽지 않습니다)"
+
+    text = _pbpaste()
+    if not text.strip():
+        return "(클립보드가 비어 있습니다)"
+    if looks_secret(text):
+        return "(비밀처럼 보이는 내용이라 읽지 않습니다)"
+
+    _history.capture(text)
+    return text
+
+
+@mcp.tool()
+def recent_clips(limit: int = 5) -> str:
+    """최근 복사한 것들. 데몬이 사는 동안만 남는다."""
+    _capture_current()
+    clips = _history.recent(limit)
+    if not clips:
+        return "기록된 복사 내용이 없습니다."
+    return "\n".join(c.describe() for c in clips)
+
+
+@mcp.tool()
+def search_clips(query: str, limit: int = 5) -> str:
+    """복사했던 것 중에서 찾는다. \"아까 복사한 그 에러\" 같은 질문용."""
+    _capture_current()
+    clips = _history.find(query, limit)
+    if not clips:
+        return f"'{query}' 가 들어간 복사 기록이 없습니다."
+    return "\n\n".join(f"{c.describe()}\n{c.text[:600]}" for c in clips)
+
+
+@mcp.tool()
+def forget_clips() -> str:
+    """복사 이력을 지운다."""
+    count = len(_history)
+    _history.clear()
+    return f"복사 기록 {count}건을 지웠습니다."
 
 
 @mcp.tool()

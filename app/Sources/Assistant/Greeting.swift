@@ -70,6 +70,12 @@ struct Suggestion: Identifiable, Equatable {
         }
 
         out.append(Suggestion(
+            label: "복사한 거",
+            icon: "doc.on.clipboard",
+            prompt: "방금 복사한 내용 봐줘"
+        ))
+
+        out.append(Suggestion(
             label: "레포 상태",
             icon: "chevron.left.forwardslash.chevron.right",
             prompt: "손 놓은 브랜치나 커밋 안 한 변경 있는지 봐줘"
