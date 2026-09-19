@@ -55,7 +55,8 @@ final class PanelController: ObservableObject {
     private let frameKey = "panel.frame"
     private var expandedHeight: CGFloat = 620
 
-    static let compactHeight: CGFloat = 76
+    /// 헤더 실제 높이와 맞춘다. 남는 공간이 있으면 헤더가 위로 쏠린다.
+    static let compactHeight: CGFloat = 64
 
     func toggle<Content: View>(@ViewBuilder content: () -> Content) {
         if isVisible { hide() } else { show(content: content) }
@@ -105,26 +106,29 @@ final class PanelController: ObservableObject {
         (target ?? panel)?.level = isPinned ? .floating : .normal
     }
 
-    /// 접고 펼 때 높이만 바꾼다. 위쪽 모서리를 고정해 두어야
-    /// 화면에서 튀어 오르는 느낌이 없다.
+    /// 접고 펼 때 높이만 바꾼다.
+    ///
+    /// 위쪽 모서리를 고정해야 화면에서 튀어 오르지 않는다. 그리고
+    /// 애니메이션을 쓰지 않는다 — 창 크기는 AppKit 이, 내용은 SwiftUI 가
+    /// 각자 다른 커브로 움직여서 중간 프레임이 어긋나 보인다 (ADR-026).
     private func applyHeight() {
         guard let panel else { return }
         var frame = panel.frame
         let top = frame.maxY
 
         if isCompact {
-            expandedHeight = frame.height
+            expandedHeight = max(frame.height, 360)
             frame.size.height = Self.compactHeight
         } else {
             frame.size.height = expandedHeight
         }
         frame.origin.y = top - frame.height
 
-        panel.minSize = NSSize(
-            width: 280,
-            height: isCompact ? Self.compactHeight : 360
-        )
-        panel.setFrame(frame, display: true, animate: true)
+        // 접힌 동안에는 세로로 끌 수 없게 막는다. 늘리면 빈 칸만 생긴다.
+        panel.minSize = NSSize(width: 280, height: isCompact ? Self.compactHeight : 360)
+        panel.maxSize = NSSize(width: 520, height: isCompact ? Self.compactHeight : 1400)
+
+        panel.setFrame(frame, display: true, animate: false)
     }
 
     // MARK: - 위치 기억

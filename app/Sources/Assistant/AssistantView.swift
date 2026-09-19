@@ -22,9 +22,7 @@ struct AssistantView: View {
         VStack(spacing: 0) {
             header
 
-            if panel.isCompact {
-                Spacer(minLength: 0)
-            } else {
+            if !panel.isCompact {
                 content
             }
         }
@@ -34,7 +32,6 @@ struct AssistantView: View {
             RoundedRectangle(cornerRadius: Theme.panelRadius)
                 .strokeBorder(Theme.stroke(scheme), lineWidth: 1)
         )
-        .animation(.easeInOut(duration: 0.22), value: panel.isCompact)
         .background {
             // 보이지 않는 버튼으로 단축키를 건다. 패널에는 메뉴 막대가
             // 없어서 커맨드 등록이 이 방법밖에 없다.
@@ -131,8 +128,8 @@ struct AssistantView: View {
             }
         }
         .padding(.horizontal, 14)
-        .padding(.top, 12)
-        .padding(.bottom, 10)
+        .padding(.vertical, panel.isCompact ? 0 : 11)
+        .frame(height: panel.isCompact ? PanelController.compactHeight : nil)
     }
 
     /// 접었을 때는 다음 일정이 제목 자리로 올라온다.
