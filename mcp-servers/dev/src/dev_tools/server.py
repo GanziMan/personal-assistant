@@ -92,6 +92,30 @@ def changed_files(name: str) -> str:
 
 
 @mcp.tool()
+def commits_across_repos(days: int = 1, author: str = "") -> str:
+    """모든 레포의 최근 커밋을 한 번에. 업무 로그가 쓰는 도구다.
+
+    레포마다 따로 물으면 호출이 수십 번으로 늘어난다.
+    """
+    lines: list[str] = []
+    for repo in discover.find_repos(limit=40):
+        args = [
+            "log", f"--since={days}.days", "-30",
+            "--pretty=format:%h  %s", "--date=short", "--no-merges",
+        ]
+        if author:
+            args += [f"--author={author}"]
+        try:
+            out = run(repo, *args).strip()
+        except GitError:
+            continue
+        if out:
+            lines.append(f"## {repo.name}\n{out}")
+
+    return "\n\n".join(lines) if lines else f"최근 {days}일간 커밋이 없습니다."
+
+
+@mcp.tool()
 def search_code(query: str, name: str, limit: int = 30) -> str:
     """레포 안에서 코드를 검색한다 (git grep, 추적 중인 파일만)."""
     repo = _repo_or_error(name)

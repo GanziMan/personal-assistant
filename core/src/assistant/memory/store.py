@@ -170,6 +170,27 @@ class MemoryStore:
             for r in self.db.execute(sql, args).fetchall()
         ]
 
+    def episodes_by_kind(
+        self, kind: str, *, since: float | None = None, limit: int = 120
+    ) -> list[Hit]:
+        """분류로 골라 읽는다. "이번 분기 뭐 했지" 가 여기로 간다.
+
+        검색이 아니라 열람이다. 업무 로그는 질의어로 찾는 게 아니라
+        기간으로 훑는 것이 맞다.
+        """
+        sql = "SELECT id, title, body, ts FROM episodes WHERE kind = ? AND archived = 0"
+        args: list = [kind]
+        if since is not None:
+            sql += " AND ts >= ?"
+            args.append(since)
+        sql += " ORDER BY ts DESC LIMIT ?"
+        args.append(limit)
+
+        return [
+            Hit("episode", int(r["id"]), 0.0, r["title"], r["body"], r["ts"])
+            for r in self.db.execute(sql, tuple(args)).fetchall()
+        ]
+
     # ---- 망각 -----------------------------------------------------
 
     def archive_stale(self, *, older_than_days: float = 90) -> int:

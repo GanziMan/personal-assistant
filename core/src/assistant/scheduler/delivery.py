@@ -22,7 +22,7 @@ class Delivery:
         self.agent.remember(
             title=f"[{job.name}] {result.splitlines()[0][:80]}",
             body=result,
-            kind="briefing",
+            kind=job.kind,
             importance=0.7 if job.notify else 0.4,
         )
 

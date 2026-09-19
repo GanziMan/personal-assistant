@@ -24,6 +24,10 @@ class Job:
 
     notify: bool = False           # 알림을 띄울 것인가
     title: str = ""                # 알림 제목
+
+    # 기억에 어떤 분류로 쌓을지. 나중에 "이번 분기 뭐 했지" 가
+    # 업무 로그만 골라 읽을 수 있어야 한다.
+    kind: str = "briefing"
     enabled: bool = True
     schedule: Schedule = field(init=False)
 
@@ -66,6 +70,15 @@ DEFAULT_JOBS: tuple[Job, ...] = (
         mode="rule",
         rule="detect",
         notify=False,  # 알림 여부는 신호의 severity 가 정한다
+    ),
+    # 하루를 닫으며 오늘 한 일을 쌓는다. 쌓인 것이 분기 회고의 근거가 된다.
+    Job(
+        name="work_log",
+        cron="30 18 * * 0-4",
+        mode="rule",
+        rule="work_log",
+        kind="worklog",
+        notify=False,
     ),
     Job(
         name="weekly_review",

@@ -60,7 +60,7 @@ class Agent:
         # 구독 백엔드는 자기 MCP 연결을 따로 띄운다. 여기 레지스트리를
         # 같은 규모로 또 띄우면 프로세스가 두 배가 되고 기동이 느려진다.
         # 데몬이 직접 부르는 건 대기 화면(calendar)과 알림(system)뿐이다.
-        needed = {"calendar", "system"} if self.uses_subscription else None
+        needed = {"calendar", "system", "dev"} if self.uses_subscription else None
         specs = [
             ServerSpec(
                 name=str(s["name"]),

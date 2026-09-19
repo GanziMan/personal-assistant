@@ -37,6 +37,31 @@ def registered() -> list[str]:
     return sorted(_REGISTRY)
 
 
+@rule("work_log")
+async def work_log(tools) -> str:  # noqa: ANN001
+    """오늘 한 일을 모아 한 덩어리로 만든다.
+
+    모델을 쓰지 않는다. 무엇을 했는지는 조회와 정리의 문제다.
+    """
+    from ..worklog import build
+
+    async def safe(name: str, args: dict) -> str:
+        try:
+            return await tools.call(name, args)
+        except Exception as exc:
+            log.debug("%s 실패: %s", name, exc)
+            return ""
+
+    day = build(
+        commits=await safe("dev__commits_across_repos", {"days": 1}),
+        events=await safe("calendar__list_events", {"when": "오늘"}),
+        reminders=await safe("calendar__list_reminders", {"include_completed": True}),
+    )
+    if day.empty:
+        return ""
+    return f"{day.title()}\n\n{day.body()}"
+
+
 @rule("detect")
 async def detect(tools) -> str:  # noqa: ANN001
     """맥 상태를 살펴 먼저 말할 거리를 찾는다.

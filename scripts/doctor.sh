@@ -27,7 +27,7 @@ else
 fi
 
 hdr "MCP 서버 실행 파일"
-for s in macos-calendar-mcp macos-system-mcp macos-files-mcp feeds-mcp dev-mcp; do
+for s in macos-calendar-mcp macos-system-mcp macos-files-mcp feeds-mcp dev-mcp memory-mcp; do
   [[ -x "$VENV/bin/$s" ]] && ok "$s" || no "$s (install.sh 재실행 필요)"
 done
 
