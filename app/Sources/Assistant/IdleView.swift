@@ -16,6 +16,14 @@ struct IdleView: View {
 
             NextEventCard(status: model.status)
 
+            if !model.status.notes.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    ForEach(model.status.notes, id: \.self) { note in
+                        NoteRow(text: note)
+                    }
+                }
+            }
+
             if !model.status.todos.isEmpty {
                 SectionCard(icon: "checklist", title: "남은 할 일") {
                     VStack(alignment: .leading, spacing: 9) {
@@ -170,6 +178,27 @@ private struct BriefCard: View {
                 .buttonStyle(.plain)
             }
         }
+    }
+}
+
+/// 감지기가 남긴 쪽지. 알림까지 띄울 일은 아니지만 볼 때는 보여야 하는 것.
+private struct NoteRow: View {
+    let text: String
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 7) {
+            Image(systemName: "info.circle")
+                .font(.system(size: 10))
+                .padding(.top, 1)
+            Text(text)
+                .font(.system(size: 12))
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .foregroundStyle(.secondary)
+        .padding(.horizontal, 10)
+        .padding(.vertical, 8)
+        .background(Color.accentColor.opacity(0.10), in: RoundedRectangle(cornerRadius: 9))
     }
 }
 

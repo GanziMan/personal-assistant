@@ -43,6 +43,7 @@ class Status:
     todos: list[str] = field(default_factory=list)
     brief: str = ""
     brief_at: float = 0.0
+    notes: list[str] = field(default_factory=list)
     tools_ready: bool = False
     updated_at: float = 0.0
 
@@ -83,6 +84,7 @@ class StatusProvider:
         status.next_event, status.next_event_minutes = await self._next_event(tools)
         status.todos = await self._todos(tools)
         status.brief, status.brief_at = self._latest_brief()
+        status.notes = self._notes()
 
         self._cached = status
         return status
@@ -104,6 +106,16 @@ class StatusProvider:
             log.debug("list_reminders 실패: %s", exc)
             return []
         return parse_reminders(text)
+
+    def _notes(self) -> list[str]:
+        """감지기가 남긴 쪽지. 오래된 것은 스스로 사라진다."""
+        from .detect.notes import NoteBoard
+
+        try:
+            return [n.message for n in NoteBoard().load()]
+        except Exception as exc:
+            log.debug("쪽지 조회 실패: %s", exc)
+            return []
 
     def _latest_brief(self) -> tuple[str, float]:
         """가장 최근 브리핑을 기억에서 꺼낸다. 모델을 부르지 않는다."""

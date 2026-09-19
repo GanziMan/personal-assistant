@@ -37,6 +37,49 @@ def registered() -> list[str]:
     return sorted(_REGISTRY)
 
 
+@rule("detect")
+async def detect(tools) -> str:  # noqa: ANN001
+    """맥 상태를 살펴 먼저 말할 거리를 찾는다.
+
+    판단은 전부 코드로 한다. 같은 얘기를 반복하지 않는 것이 감지보다
+    어렵기 때문에, 신호마다 쿨다운과 상태 지문을 둔다 (ADR-025).
+    """
+    from ..detect.notes import NoteBoard
+    from ..detect.probes import disk_pressure, folder_pileup
+    from ..detect.signals import Severity
+    from ..detect.store import SignalStore
+
+    found = [probe for probe in (disk_pressure(), folder_pileup()) if probe is not None]
+    store = SignalStore()
+
+    # 조건이 풀린 신호는 기록을 지운다. 다시 생기면 즉시 말할 수 있어야 한다.
+    live = {s.key for s in found}
+    for key in ("disk_pressure", "downloads_pileup"):
+        if key not in live:
+            store.forget(key)
+
+    fresh = store.filter(found)
+    if not fresh:
+        return ""
+
+    board = NoteBoard()
+    lines = []
+    for signal in fresh:
+        lines.append(signal.message)
+        if signal.severity >= Severity.NOTE:
+            board.put(signal.key, signal.message)
+        if signal.severity >= Severity.ALERT:
+            try:
+                await tools.call(
+                    "system__send_alert",
+                    {"title": "비서", "message": signal.message},
+                )
+            except Exception as exc:
+                log.warning("알림 실패: %s", exc)
+
+    return "\n".join(lines)
+
+
 @rule("upcoming_event")
 async def upcoming_event(tools) -> str:  # noqa: ANN001
     """30분 안에 시작하는 일정. 없으면 빈 문자열."""

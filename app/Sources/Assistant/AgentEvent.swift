@@ -45,8 +45,10 @@ struct StatusPayload: Decodable, Equatable {
     var brief: String = ""
     var briefAt: Double = 0
     var toolsReady: Bool = false
+    var notes: [String] = []
 
     private enum CodingKeys: String, CodingKey {
+        case notes
         case nextEvent = "next_event"
         case nextEventMinutes = "next_event_minutes"
         case todos
@@ -63,11 +65,12 @@ struct StatusPayload: Decodable, Equatable {
         brief = (try? c.decode(String.self, forKey: .brief)) ?? ""
         briefAt = (try? c.decode(Double.self, forKey: .briefAt)) ?? 0
         toolsReady = (try? c.decode(Bool.self, forKey: .toolsReady)) ?? false
+        notes = (try? c.decode([String].self, forKey: .notes)) ?? []
     }
 
     init() {}
 
-    var isEmpty: Bool { nextEvent.isEmpty && todos.isEmpty && brief.isEmpty }
+    var isEmpty: Bool { nextEvent.isEmpty && todos.isEmpty && brief.isEmpty && notes.isEmpty }
 
     /// "50분 뒤" 처럼 사람이 읽는 남은 시간.
     var countdown: String? {

@@ -59,6 +59,14 @@ DEFAULT_JOBS: tuple[Job, ...] = (
         notify=True,
         title="곧 시작하는 일정",
     ),
+    # 30분마다. 판단이 전부 코드라 비용이 0이다.
+    Job(
+        name="detect",
+        cron="*/30 * * * *",
+        mode="rule",
+        rule="detect",
+        notify=False,  # 알림 여부는 신호의 severity 가 정한다
+    ),
     Job(
         name="weekly_review",
         cron="0 18 * * 4",  # 금요일 18:00
