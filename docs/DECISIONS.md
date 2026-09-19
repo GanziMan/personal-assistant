@@ -117,3 +117,29 @@ Anthropic 의 안내다.)
 **일반화.** 모델은 판단이 필요할 때만 부른다. 조회·산술·임계값 비교는
 코드가 할 일이다. 에이전트로 만들 수 있다는 것이 에이전트로 만들
 이유가 되지는 않는다.
+
+---
+
+## ADR-009 — 메뉴바 앱은 Xcode 프로젝트를 두지 않는다
+
+**결정.** SwiftPM 패키지로 빌드하고, `.app` 번들은 `scripts/build-app.sh`
+가 조립한다.
+
+**이유.** 두 가지다. `.xcodeproj` 는 diff 가 읽히지 않아 레포에 두면
+변경 리뷰가 불가능해진다. 그리고 SwiftPM 은 Command Line Tools 만으로
+빌드돼서, 전체 Xcode(수 GB) 설치를 요구하지 않는다.
+
+**대가.** Info.plist 와 번들 구조를 손으로 관리한다. 메뉴바 앱 하나
+수준에서는 스크립트 40줄이면 끝난다.
+
+---
+
+## ADR-010 — 전역 단축키에 Carbon 을 쓴다
+
+**결정.** ⌥Space 를 `RegisterEventHotKey`(Carbon) 로 잡는다.
+`NSEvent.addGlobalMonitorForEvents` 를 쓰지 않는다.
+
+**이유.** NSEvent 전역 모니터는 손쉬운 사용(Accessibility) 권한을
+요구한다. 그 권한은 키보드 입력 전체를 들여다볼 수 있게 해준다.
+비서를 단축키로 부르자고 내줄 권한이 아니다. Carbon API 는 오래됐지만
+해당 단축키 조합만 받고 권한을 요구하지 않는다.

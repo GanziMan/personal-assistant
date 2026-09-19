@@ -30,6 +30,7 @@ dist/
 
 # Swift / Xcode
 .build/
+Package.resolved
 DerivedData/
 *.xcuserstate
 xcuserdata/

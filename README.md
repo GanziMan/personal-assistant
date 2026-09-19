@@ -37,7 +37,7 @@ docs/         설계 문서
 | P2 | MCP 도구층 (캘린더·시스템) | 완료 |
 | P3 | 장기 기억 3계층 | 완료 |
 | P4 | 스케줄러·선제 브리핑 | 완료 |
-| P5 | SwiftUI 메뉴바 앱 | 예정 |
+| P5 | SwiftUI 메뉴바 앱 | 완료 |
 | P6 | 로컬 모델 라우팅 실측 | 예정 |
 | P7 | 온보딩·백업·감사 뷰어 | 예정 |
 
@@ -63,3 +63,13 @@ macOS TCC 가 `~/Documents` 를 보호해서 launchd 데몬이 그 안을 읽지
 ```
 ~/.assistant/venv/bin/assistant "오늘 일정 뭐야"
 ```
+
+## 메뉴바 앱
+
+```
+./scripts/build-app.sh
+```
+
+SwiftPM 으로 빌드해 `~/Applications/Assistant.app` 을 만들고 로그인 시
+자동 실행으로 등록한다. Xcode 프로젝트는 두지 않는다 — Command Line
+Tools 만 있어도 빌드된다. ⌥Space 로 부른다.
