@@ -93,3 +93,32 @@ async def test_failing_job_does_not_stop_others():
     s.now = lambda: datetime(2026, 9, 21, 8, 0)  # type: ignore[method-assign]
     await s._tick()
     assert calls == ["good"]
+
+
+def test_rule_jobs_need_a_rule_name():
+    with pytest.raises(ValueError, match="rule 이름"):
+        Job(name="bad", cron="* * * * *", mode="rule")
+
+
+def test_agent_jobs_need_a_prompt():
+    with pytest.raises(ValueError, match="prompt"):
+        Job(name="bad", cron="* * * * *", mode="agent")
+
+
+def test_frequent_jobs_do_not_use_the_model():
+    """자주 도는 잡이 모델을 부르면 비용이 터진다 (ADR-008)."""
+    from assistant.scheduler.cron import Schedule
+
+    for job in DEFAULT_JOBS:
+        # 하루 24번 넘게 도는 잡인가
+        runs_per_day = len(Schedule.parse(job.cron).minute) * len(Schedule.parse(job.cron).hour)
+        if runs_per_day > 24:
+            assert job.mode == "rule", f"{job.name}: 하루 {runs_per_day}회면 규칙이어야 한다"
+
+
+def test_every_rule_job_points_at_a_registered_rule():
+    from assistant.scheduler import rules
+
+    for job in DEFAULT_JOBS:
+        if job.mode == "rule":
+            assert job.rule in rules.registered(), f"{job.name}: 등록 안 된 규칙 '{job.rule}'"

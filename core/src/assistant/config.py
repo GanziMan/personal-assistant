@@ -22,7 +22,16 @@ CONFIG_PATH = HOME / "config.toml"
 
 @dataclass(slots=True)
 class ModelConfig:
-    """어느 두뇌를 쓸지."""
+    """어느 두뇌를 쓸지.
+
+    backend="subscription" 이면 Claude Code 로그인(Pro/Max)에서 사용량이
+    빠지고 API 과금이 없다. "api" 는 키체인의 API 키로 토큰 과금된다.
+    """
+
+    backend: str = "subscription"
+
+    # 구독 경로에서는 별칭을 쓴다. Claude Code 가 현재 모델로 해석한다.
+    subscription_model: str = "sonnet"
 
     # 모델 ID 는 platform.claude.com/docs/en/models/overview 기준 (2026-09).
     # 일상 대화·짧은 작업은 sonnet, 계획·코딩은 opus 로 올린다.
@@ -63,6 +72,18 @@ class Config:
     servers: list[dict[str, object]] = field(default_factory=default_servers)
     timezone: str = "Asia/Seoul"
     locale: str = "ko_KR"
+
+    def system_prompt(self) -> str:
+        """시스템 프롬프트를 현재 시각으로 채운다."""
+        from datetime import datetime
+        from zoneinfo import ZoneInfo
+
+        from .prompts import SYSTEM
+
+        return SYSTEM.format(
+            timezone=self.timezone,
+            now=datetime.now(ZoneInfo(self.timezone)).strftime("%Y-%m-%d %H:%M (%A)"),
+        )
 
     @classmethod
     def load(cls, path: Path | None = None) -> Config:

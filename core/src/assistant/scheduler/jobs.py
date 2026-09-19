@@ -15,7 +15,13 @@ from .cron import Schedule
 class Job:
     name: str
     cron: str
-    prompt: str
+
+    # mode="agent" 면 prompt 를 모델에 보낸다. "rule" 이면 rule 이름의
+    # 파이썬 함수를 부른다 — 모델 호출이 없으므로 비용이 0이다.
+    mode: str = "agent"
+    prompt: str = ""
+    rule: str = ""
+
     notify: bool = False           # 알림을 띄울 것인가
     title: str = ""                # 알림 제목
     enabled: bool = True
@@ -23,6 +29,12 @@ class Job:
 
     def __post_init__(self) -> None:
         object.__setattr__(self, "schedule", Schedule.parse(self.cron))
+        if self.mode == "agent" and not self.prompt:
+            raise ValueError(f"{self.name}: agent 잡에는 prompt 가 필요합니다")
+        if self.mode == "rule" and not self.rule:
+            raise ValueError(f"{self.name}: rule 잡에는 rule 이름이 필요합니다")
+        if self.mode not in {"agent", "rule"}:
+            raise ValueError(f"{self.name}: 알 수 없는 mode '{self.mode}'")
 
 
 DEFAULT_JOBS: tuple[Job, ...] = (
@@ -36,13 +48,13 @@ DEFAULT_JOBS: tuple[Job, ...] = (
         notify=True,
         title="아침 브리핑",
     ),
+    # 하루 96번 도는 잡이다. 모델을 태우면 비용의 대부분이 여기서 나오고,
+    # 애초에 판단이 필요 없는 일이라 규칙으로 돌린다 (ADR-008).
     Job(
         name="upcoming_event",
         cron="*/15 * * * *",
-        prompt=(
-            "30분 안에 시작하는 일정이 있으면 한 줄로 알려줘. "
-            "없으면 '없음'만 답해."
-        ),
+        mode="rule",
+        rule="upcoming_event",
         notify=True,
         title="곧 시작하는 일정",
     ),

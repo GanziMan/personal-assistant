@@ -18,6 +18,7 @@ from .agent import Agent
 from .config import LOG_DIR, SOCKET_PATH, Config, ensure_dirs
 from .protocol import Event, EventType
 from .scheduler import DEFAULT_JOBS, Scheduler
+from .scheduler import rules
 from .scheduler.delivery import Delivery
 
 log = logging.getLogger("assistantd")
@@ -71,6 +72,12 @@ class Daemon:
                 )
                 await writer.drain()
 
+    async def _run_job(self, job) -> str:  # noqa: ANN001
+        """규칙 잡은 도구만, 에이전트 잡은 모델까지."""
+        if job.mode == "rule":
+            return await rules.get(job.rule)(self.agent.tools)
+        return await self.agent.run_silent(job.prompt, session_id=f"job:{job.name}")
+
     async def serve(self) -> None:
         ensure_dirs()
 
@@ -89,7 +96,7 @@ class Daemon:
         # 알림 잡은 도구가 있어야 의미가 있다. 도구층이 뜬 뒤에 시작한다.
         self._scheduler = Scheduler(
             list(DEFAULT_JOBS),
-            run_job=lambda job: self.agent.run_silent(job.prompt, session_id=f"job:{job.name}"),
+            run_job=self._run_job,
             on_result=Delivery(self.agent),
             timezone=self.config.timezone,
         )

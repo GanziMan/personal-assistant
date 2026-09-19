@@ -26,7 +26,7 @@ docs/         설계 문서
 | Python 3.12+ / uv | 코어 데몬 |
 | Xcode 15+ | SwiftUI 메뉴바 앱 빌드 |
 | Ollama | 로컬 임베딩·분류 모델 |
-| Claude API 키 | 클라우드 추론 (키체인 보관) |
+| Claude Code CLI | 구독(Pro/Max)으로 추론 — API 키 불필요 |
 
 ## 현재 상태
 
@@ -46,9 +46,15 @@ docs/         설계 문서
 ## 설치
 
 ```
-brew install uv ollama
+brew install uv ollama node
+npm install -g @anthropic-ai/claude-code
+claude login
 ./scripts/install.sh
 ```
+
+추론은 Claude Code 로그인(Pro/Max 구독)에서 사용량이 빠진다. 별도 API
+과금이 없다 (ADR-007). API 키로 쓰려면 `~/.assistant/config.toml` 에
+`[models] backend = "api"` 를 넣는다.
 
 런타임(가상환경·기억 DB·로그)은 레포가 아니라 `~/.assistant` 에 만들어진다.
 macOS TCC 가 `~/Documents` 를 보호해서 launchd 데몬이 그 안을 읽지 못하기

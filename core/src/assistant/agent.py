@@ -15,6 +15,7 @@ from zoneinfo import ZoneInfo
 from .audit import AuditLog
 from .config import Config
 from .llm.cloud import CloudAuthError, CloudLLM
+from .llm.subscription import SubscriptionBackend
 from .llm.router import ModelRouter, TaskKind
 from .prompts import SYSTEM
 from .protocol import Event, EventType
@@ -45,8 +46,19 @@ class Agent:
         self.memory = MemoryStore()
         self._cloud: CloudLLM | None = None
         self._sessions: dict[str, Session] = {}
+        self._backend: SubscriptionBackend | None = None
+
+    @property
+    def uses_subscription(self) -> bool:
+        return self.config.models.backend == "subscription"
 
     async def start(self) -> None:
+        if self.uses_subscription:
+            self._backend = SubscriptionBackend(self.config)
+            await self._backend.start()
+
+        # 도구층은 두 경로 모두에서 쓴다. 구독 백엔드는 자기 MCP 연결로
+        # 모델 도구 호출을 처리하고, 여기 레지스트리는 규칙 잡이 쓴다.
         specs = [
             ServerSpec(
                 name=str(s["name"]),
@@ -58,6 +70,8 @@ class Agent:
         await self.tools.start(specs)
 
     async def aclose(self) -> None:
+        if self._backend is not None:
+            await self._backend.aclose()
         await self.tools.aclose()
         self.memory.close()
 
@@ -103,6 +117,12 @@ class Agent:
 
     async def run(self, session_id: str, prompt: str) -> AsyncIterator[Event]:
         """한 턴을 돌린다. 도구 호출이 끝날 때까지 반복한다."""
+        if self._backend is not None:
+            # SDK 가 루프와 도구 호출을 직접 돌린다
+            async for event in self._backend.stream(session_id, prompt):
+                yield event
+            return
+
         session = self.session(session_id)
         session.add("user", prompt)
 

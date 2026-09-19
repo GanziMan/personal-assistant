@@ -93,6 +93,28 @@ def next_event() -> str:
     return f"{lead} — {e.describe()}"
 
 
+@mcp.tool()
+def upcoming(within_minutes: int = 30) -> str:
+    """N분 안에 시작하는 일정. 없으면 빈 문자열.
+
+    규칙 잡이 쓰는 도구다. 모델이 문장을 해석할 필요가 없도록,
+    '있으면 한 줄 / 없으면 빈 문자열' 로만 답한다.
+    """
+    from datetime import timedelta
+
+    now = datetime.now()
+    horizon = now + timedelta(minutes=within_minutes)
+    soon = [
+        e for e in _store().events_between(now, horizon) if now <= e.start <= horizon
+    ]
+    if not soon:
+        return ""
+
+    e = soon[0]
+    mins = max(0, int((e.start - now).total_seconds() // 60))
+    return f"{mins}분 뒤 {e.title}" + (f" @{e.location}" if e.location else "")
+
+
 def main() -> int:
     if sys.platform != "darwin":
         print("이 서버는 macOS 전용입니다.", file=sys.stderr)

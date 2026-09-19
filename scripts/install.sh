@@ -40,15 +40,28 @@ uv pip install --python "$VENV/bin/python" -q \
 say "임포트 검증"
 "$VENV/bin/python" -c "import assistant.daemon" || die "데몬 임포트 실패 (위 오류 확인)"
 
-say "API 키 확인"
-if ! security find-generic-password -s assistant-anthropic -w >/dev/null 2>&1; then
-  echo "  키체인에 Claude API 키가 없습니다. 지금 저장합니다."
-  security add-generic-password -a "$USER" -s assistant-anthropic -w
+say "Claude Code 확인 (구독 백엔드)"
+if ! command -v claude >/dev/null; then
+  command -v npm >/dev/null || die "node/npm 이 필요합니다:  brew install node"
+  echo "  Claude Code CLI 를 설치합니다."
+  npm install -g @anthropic-ai/claude-code
 fi
+
+if ! claude -p "ok" >/dev/null 2>&1; then
+  echo
+  echo "  Claude Code 로그인이 필요합니다. 다음을 실행한 뒤 이 스크립트를 다시 돌리세요:"
+  echo "    claude login"
+  die "로그인되지 않았습니다."
+fi
+echo "  구독 계정으로 동작합니다. API 키는 필요 없습니다."
 
 say "launchd 등록"
 mkdir -p "$AGENT_DIR"
-sed -e "s|__VENV__|$VENV|g" -e "s|__HOME__|$HOME|g" \
+# launchd 는 PATH 가 거의 비어 있다. claude 와 node 경로를 직접 넣어준다.
+DAEMON_PATH="$(dirname "$(command -v claude)"):$(dirname "$(command -v node)")"
+DAEMON_PATH="$DAEMON_PATH:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+
+sed -e "s|__VENV__|$VENV|g" -e "s|__HOME__|$HOME|g" -e "s|__PATH__|$DAEMON_PATH|g" \
     "$REPO/scripts/com.assistant.daemon.plist" > "$PLIST"
 
 launchctl bootout "gui/$UID/$LABEL" 2>/dev/null || true
