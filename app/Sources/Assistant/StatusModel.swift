@@ -40,9 +40,10 @@ final class StatusModel: ObservableObject {
     }
 
     private func nextInterval() -> Int {
-        guard let minutes = status.nextEventMinutes else { return 120 }
+        // 기능이 꺼져 있으면 복구를 빨리 알아채야 한다
+        if status.capabilities.contains(where: { !$0.ok }) { return 20 }
+        guard let minutes = status.nextEventMinutes else { return 45 }
         if minutes <= 15 { return 20 }
-        if minutes <= 60 { return 60 }
-        return 120
+        return 45
     }
 }

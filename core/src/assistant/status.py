@@ -17,7 +17,8 @@ from typing import Any
 
 log = logging.getLogger(__name__)
 
-CACHE_SECONDS = 45.0
+# 고장은 빨리 보여야 한다. 도구 조회는 가벼우므로 짧게 잡는다.
+CACHE_SECONDS = 15.0
 MAX_TODOS = 5
 
 _LEAD_MIN = re.compile(r"^(\d+)\s*분 뒤")

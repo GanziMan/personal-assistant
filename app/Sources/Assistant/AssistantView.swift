@@ -47,12 +47,26 @@ struct AssistantView: View {
         .onExitCommand { panel.hide() }
         .task {
             status.start()
+            // 패널을 열었을 때 낡은 상태를 보여주지 않는다
+            await status.refresh()
             inputFocused = true
         }
     }
 
     private var content: some View {
         VStack(spacing: 0) {
+            // 상태 배너는 대기 화면 밖에 둔다. 대화 중에도 고장은 보여야 한다.
+            if !status.daemonReachable || status.status.capabilities.contains(where: { !$0.ok }) {
+                VStack(spacing: 7) {
+                    if !status.daemonReachable {
+                        DaemonBanner()
+                    }
+                    HealthBanner(capabilities: status.status.capabilities)
+                }
+                .padding(.horizontal, 15)
+                .padding(.bottom, 10)
+            }
+
             ScrollViewReader { proxy in
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {

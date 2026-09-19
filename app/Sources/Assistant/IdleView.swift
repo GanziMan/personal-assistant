@@ -10,12 +10,6 @@ struct IdleView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            if !model.daemonReachable {
-                DaemonBanner()
-            }
-
-            HealthBanner(capabilities: model.status.capabilities)
-
             NextEventCard(status: model.status)
 
             if !model.status.notes.isEmpty {
