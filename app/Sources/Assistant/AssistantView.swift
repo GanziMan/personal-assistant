@@ -9,6 +9,7 @@ struct AssistantView: View {
 
     @Environment(\.colorScheme) private var scheme
     @FocusState private var inputFocused: Bool
+    @State private var dropTargeted = false
 
     private var hasConversation: Bool { !conversation.turns.isEmpty }
 
@@ -40,11 +41,43 @@ struct AssistantView: View {
                     .keyboardShortcut("k", modifiers: .command)
                 Button("") { panel.isCompact.toggle() }
                     .keyboardShortcut("j", modifiers: .command)
+                Button("") {
+                    // 이미지가 없으면 텍스트 붙여넣기가 그대로 동작해야 한다
+                    if !conversation.attachPastedImage() {
+                        NSApp.sendAction(#selector(NSText.paste(_:)), to: nil, from: nil)
+                    }
+                }
+                .keyboardShortcut("v", modifiers: .command)
             }
             .opacity(0)
             .allowsHitTesting(false)
         }
         .onExitCommand { panel.hide() }
+        .onDrop(of: [.fileURL], isTargeted: $dropTargeted) { providers in
+            Task {
+                let urls = await Attachments.urls(from: providers)
+                await MainActor.run { conversation.attach(urls: urls) }
+            }
+            return true
+        }
+        .overlay {
+            if dropTargeted {
+                RoundedRectangle(cornerRadius: Theme.panelRadius)
+                    .strokeBorder(Color.accentColor, style: StrokeStyle(lineWidth: 2, dash: [6]))
+                    .background(
+                        Color.accentColor.opacity(0.08),
+                        in: RoundedRectangle(cornerRadius: Theme.panelRadius)
+                    )
+                    .overlay {
+                        Label("여기에 놓으면 비서가 봅니다", systemImage: "arrow.down.doc")
+                            .font(.system(size: 12, weight: .medium))
+                            .foregroundStyle(Color.accentColor)
+                    }
+                    .allowsHitTesting(false)
+                    .transition(.opacity)
+            }
+        }
+        .animation(.easeInOut(duration: 0.15), value: dropTargeted)
         .task {
             status.start()
             // 패널을 열었을 때 낡은 상태를 보여주지 않는다
@@ -71,6 +104,11 @@ struct AssistantView: View {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 14) {
                         if !hasConversation {
+                            Onboarding { prompt in
+                                conversation.input = prompt
+                                conversation.submit()
+                            }
+
                             IdleView(model: status) { todo in
                                 conversation.input = "\(todo) 관련해서 도와줘"
                                 inputFocused = true

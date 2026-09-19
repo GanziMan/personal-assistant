@@ -23,5 +23,9 @@
     <!-- 메뉴바에만 산다. Dock 아이콘도 앱 전환기에도 나타나지 않는다. -->
     <key>LSUIElement</key>
     <true/>
+
+    <!-- 알림 권한을 요청하려면 번들 식별자가 안정적이어야 한다 -->
+    <key>NSUserNotificationsUsageDescription</key>
+    <string>일정과 감지한 상황을 알려드립니다.</string>
 </dict>
 </plist>

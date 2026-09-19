@@ -14,10 +14,14 @@ struct MarkdownText: View {
             ForEach(Array(MarkdownBlock.parse(raw).enumerated()), id: \.offset) { _, block in
                 switch block {
                 case .paragraph(let text):
-                    Text(inline(text))
-                        .font(.system(size: 13))
-                        .textSelection(.enabled)
-                        .fixedSize(horizontal: false, vertical: true)
+                    if let path = FilePath.only(in: text) {
+                        PathLine(text: text, path: path, attributed: inline(text))
+                    } else {
+                        Text(inline(text))
+                            .font(.system(size: 13))
+                            .textSelection(.enabled)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
 
                 case .bullet(let items):
                     VStack(alignment: .leading, spacing: 4) {
@@ -191,3 +195,75 @@ private struct CodeBlock: View {
     }
 }
 
+
+
+/// 답변에 나온 파일 경로.
+///
+/// 비서는 경로를 자주 말한다. 지금까지는 복사해서 Finder 에 붙여야
+/// 했다. 줄에 경로가 하나뿐일 때만 버튼을 붙인다 — 여러 개면 어느
+/// 것을 여는지 모호해진다.
+enum FilePath {
+    static func only(in line: String) -> String? {
+        let found = matches(in: line)
+        return found.count == 1 ? found[0] : nil
+    }
+
+    static func matches(in line: String) -> [String] {
+        let pattern = #"(?:~|/Users/[^\s]+?)(?:/[^\s,;:()\[\]"']+)+"#
+        guard let regex = try? NSRegularExpression(pattern: pattern) else { return [] }
+
+        let range = NSRange(line.startIndex..., in: line)
+        return regex.matches(in: line, range: range).compactMap { match in
+            guard let r = Range(match.range, in: line) else { return nil }
+            let raw = String(line[r]).trimmingCharacters(in: CharacterSet(charactersIn: ".,"))
+            return exists(raw) ? raw : nil
+        }
+    }
+
+    static func exists(_ raw: String) -> Bool {
+        FileManager.default.fileExists(atPath: expand(raw))
+    }
+
+    static func expand(_ raw: String) -> String {
+        raw.hasPrefix("~") ? NSHomeDirectory() + String(raw.dropFirst()) : raw
+    }
+
+    static func reveal(_ raw: String) {
+        NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: expand(raw))])
+    }
+}
+
+private struct PathLine: View {
+    let text: String
+    let path: String
+    let attributed: AttributedString
+
+    @State private var hovering = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(attributed)
+                .font(.system(size: 13))
+                .textSelection(.enabled)
+                .fixedSize(horizontal: false, vertical: true)
+
+            Button {
+                FilePath.reveal(path)
+            } label: {
+                HStack(spacing: 4) {
+                    Image(systemName: "folder")
+                        .font(.system(size: 9))
+                    Text("Finder 에서 열기")
+                        .font(.system(size: 10))
+                }
+                .padding(.horizontal, 7)
+                .padding(.vertical, 3)
+                .background(.quaternary.opacity(hovering ? 0.6 : 0.3), in: Capsule())
+            }
+            .buttonStyle(.plain)
+            .foregroundStyle(.secondary)
+            .onHover { hovering = $0 }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}

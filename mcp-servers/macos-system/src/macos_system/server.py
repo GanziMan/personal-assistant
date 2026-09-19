@@ -7,7 +7,10 @@ import sys
 
 from mcp.server.mcpserver import MCPServer
 
+from pathlib import Path
+
 from .clipboard import ClipboardHistory, is_concealed, looks_secret
+from .images import PASTED_DIR, is_image, prune
 from .notify import send as send_notification
 
 mcp = MCPServer("macos-system")
@@ -116,6 +119,64 @@ def send_shortcut(name: str, input_text: str = "") -> str:
     if r.returncode != 0:
         return f"단축어 '{name}' 실행 실패: {r.stderr.strip()}"
     return r.stdout.strip() or f"'{name}' 을 실행했습니다."
+
+
+def _readable(raw: str) -> Path | str:
+    """OCR 로 읽어도 되는 경로인가.
+
+    파일 서버와 같은 허용 폴더, 또는 비서가 만든 붙여넣기 폴더만
+    허용한다. 임의 경로의 이미지를 읽어주는 도구가 되면 파일 서버에
+    세운 경계가 무의미해진다.
+    """
+    from macos_files.paths import Boundary, PathDenied, from_env
+
+    path = Path(raw).expanduser().resolve(strict=False)
+
+    if PASTED_DIR.resolve() in path.parents:
+        return path
+    try:
+        return from_env().resolve(str(path))
+    except PathDenied as exc:
+        return f"거부됨: {exc}"
+    except Exception:  # noqa: BLE001
+        return Boundary().describe()
+
+
+@mcp.tool()
+def read_image_text(path: str) -> str:
+    """이미지에서 글자를 읽는다 (로컬 OCR).
+
+    스크린샷 속 에러 메시지나 문서 사진을 텍스트로 뽑을 때 쓴다.
+    이미지는 맥을 벗어나지 않는다.
+    """
+    target = _readable(path)
+    if isinstance(target, str):
+        return target
+    if not target.is_file():
+        return f"파일이 없습니다: {path}"
+    if not is_image(target):
+        return f"이미지가 아닙니다: {target.suffix or '(확장자 없음)'}"
+
+    try:
+        from .ocr import OCRUnavailable, recognize
+    except ImportError as exc:
+        return f"글자 인식을 쓸 수 없습니다: {exc}"
+
+    try:
+        lines = recognize(target)
+    except Exception as exc:  # OCRUnavailable 포함
+        return f"글자 인식 실패: {exc}"
+
+    if not lines:
+        return "이미지에서 글자를 찾지 못했습니다."
+    return "\n".join(lines)
+
+
+@mcp.tool()
+def clean_pasted_images() -> str:
+    """붙여넣기 폴더의 오래된 이미지를 정리한다."""
+    removed = prune()
+    return f"오래된 이미지 {removed}개를 지웠습니다." if removed else "정리할 이미지가 없습니다."
 
 
 def main() -> int:

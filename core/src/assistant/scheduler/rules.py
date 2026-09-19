@@ -150,14 +150,8 @@ async def detect(tools) -> str:  # noqa: ANN001
         lines.append(signal.message)
         if signal.severity >= Severity.NOTE:
             board.put(signal.key, signal.message)
-        if signal.severity >= Severity.ALERT:
-            try:
-                await tools.call(
-                    "system__send_alert",
-                    {"title": "비서", "message": signal.message},
-                )
-            except Exception as exc:
-                log.warning("알림 실패: %s", exc)
+        # 알림은 앱이 띄운다. 데몬이 osascript 로 띄우면 눌러도 아무
+        # 일이 일어나지 않는다 (ADR-036). 쪽지에 올려두면 앱이 가져간다.
 
     return "\n".join(lines)
 

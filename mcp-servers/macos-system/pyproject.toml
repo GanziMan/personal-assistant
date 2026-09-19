@@ -3,7 +3,12 @@ name = "macos-system-mcp"
 version = "0.1.0"
 description = "알림·클립보드·앱 실행·단축어 MCP 서버"
 requires-python = ">=3.12"
-dependencies = ["mcp>=2,<3"]
+dependencies = [
+    "mcp>=2,<3",
+    "macos-files-mcp",
+    "pyobjc-framework-Vision>=10.3,<12; sys_platform == 'darwin'",
+    "pyobjc-framework-Quartz>=10.3,<12; sys_platform == 'darwin'",
+]
 
 [project.scripts]
 macos-system-mcp = "macos_system.server:main"

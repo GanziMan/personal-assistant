@@ -1,4 +1,5 @@
 import AppKit
+import Combine
 import SwiftUI
 
 /// 메뉴바에 상주하고, 플로팅 패널을 띄운다.
@@ -11,10 +12,8 @@ struct AssistantApp: App {
 
     var body: some Scene {
         MenuBarExtra {
-            Button("비서 열기 / 숨기기") {
-                delegate.togglePanel()
-            }
-            .keyboardShortcut(" ", modifiers: .option)
+            Button("비서 열기 / 숨기기") { delegate.togglePanel() }
+                .keyboardShortcut(" ", modifiers: .option)
 
             Divider()
 
@@ -30,12 +29,11 @@ struct AssistantApp: App {
                 .keyboardShortcut("k", modifiers: .command)
 
             Divider()
-            // 새 빌드가 실제로 도는지 눈으로 확인하는 용도.
-            // 구버전이 살아 있으면 여기 시각이 안 바뀐다.
             Text("빌드 \(AppInfo.buildStamp)")
             Button("종료") { NSApp.terminate(nil) }
         } label: {
-            Image(systemName: "sparkle")
+            // 아이콘이 상태를 말한다. 패널을 안 열어도 보인다.
+            Image(systemName: delegate.iconSymbol)
         }
     }
 }
@@ -46,14 +44,38 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
     let status = StatusModel()
     let panel = PanelController()
 
+    /// 메뉴바 아이콘. 일정이 임박하거나 알릴 것이 있으면 달라진다.
+    @Published private(set) var iconSymbol = "sparkle"
+
     private var hotKey: HotKey?
+    private var watch: AnyCancellable?
 
     func applicationDidFinishLaunching(_ notification: Notification) {
         hotKey = HotKey { [weak self] in self?.togglePanel() }
         hotKey?.register()
 
+        Notifier.shared.start()
+        Notifier.shared.onOpen = { [weak self] in self?.showPanel() }
+
+        watch = status.$status.sink { [weak self] payload in
+            self?.apply(payload)
+        }
+
         status.start()
         togglePanel()  // 첫 실행에서 바로 보이게
+    }
+
+    private func apply(_ payload: StatusPayload) {
+        iconSymbol = Self.symbol(for: payload)
+        Notifier.shared.deliver(notes: payload.notes)
+    }
+
+    /// 급한 순서대로 고른다.
+    static func symbol(for payload: StatusPayload) -> String {
+        if payload.capabilities.contains(where: { !$0.ok }) { return "sparkle.slash" }
+        if let minutes = payload.nextEventMinutes, minutes <= 15 { return "clock.badge.exclamationmark" }
+        if !payload.notes.isEmpty { return "sparkle.magnifyingglass" }
+        return "sparkle"
     }
 
     func togglePanel() {
@@ -61,8 +83,13 @@ final class AppDelegate: NSObject, NSApplicationDelegate, ObservableObject {
             AssistantView(conversation: conversation, status: status, panel: panel)
         }
     }
-}
 
+    func showPanel() {
+        panel.show {
+            AssistantView(conversation: conversation, status: status, panel: panel)
+        }
+    }
+}
 
 enum AppInfo {
     /// 실행 파일의 수정 시각. 번들을 다시 조립할 때마다 바뀐다.

@@ -82,6 +82,22 @@ final class ConversationModel: ObservableObject {
         }
     }
 
+    /// 떨어진 파일을 입력창에 문장으로 넣는다. 바로 보내지 않는다 —
+    /// 무엇을 시킬지 사용자가 한 번 더 손볼 여지를 남긴다.
+    func attach(urls: [URL]) {
+        let text = Attachments.prompt(for: urls)
+        guard !text.isEmpty else { return }
+        input = input.isEmpty ? text : input + "\n" + text
+    }
+
+    /// 붙여넣은 이미지를 저장하고 입력창에 넣는다. 성공하면 true.
+    @discardableResult
+    func attachPastedImage() -> Bool {
+        guard let url = Attachments.savePastedImage() else { return false }
+        attach(urls: [url])
+        return true
+    }
+
     func cancel() {
         currentTask?.cancel()
         isWorking = false
