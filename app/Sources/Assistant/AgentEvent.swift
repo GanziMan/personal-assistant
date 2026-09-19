@@ -46,9 +46,13 @@ struct StatusPayload: Decodable, Equatable {
     var briefAt: Double = 0
     var toolsReady: Bool = false
     var notes: [String] = []
+    var capabilities: [Capability] = []
+    var healthLine: String = ""
 
     private enum CodingKeys: String, CodingKey {
         case notes
+        case capabilities
+        case healthLine = "health_line"
         case nextEvent = "next_event"
         case nextEventMinutes = "next_event_minutes"
         case todos
@@ -66,6 +70,8 @@ struct StatusPayload: Decodable, Equatable {
         briefAt = (try? c.decode(Double.self, forKey: .briefAt)) ?? 0
         toolsReady = (try? c.decode(Bool.self, forKey: .toolsReady)) ?? false
         notes = (try? c.decode([String].self, forKey: .notes)) ?? []
+        capabilities = (try? c.decode([Capability].self, forKey: .capabilities)) ?? []
+        healthLine = (try? c.decode(String.self, forKey: .healthLine)) ?? ""
     }
 
     init() {}
@@ -91,6 +97,18 @@ struct StatusPayload: Decodable, Equatable {
         if let bracket = rest.range(of: "  [") { rest = String(rest[..<bracket.lowerBound]) }
         return rest.trimmingCharacters(in: .whitespaces)
     }
+}
+
+/// 기능 하나의 상태. 꺼졌을 때 무엇이 나빠지는지까지 담는다.
+struct Capability: Decodable, Equatable, Identifiable {
+    var key: String = ""
+    var label: String = ""
+    var ok: Bool = false
+    var detail: String = ""
+    var degraded: String = ""
+    var fix: String = ""
+
+    var id: String { key }
 }
 
 struct Request: Encodable {

@@ -14,6 +14,8 @@ struct IdleView: View {
                 DaemonBanner()
             }
 
+            HealthBanner(capabilities: model.status.capabilities)
+
             NextEventCard(status: model.status)
 
             if !model.status.notes.isEmpty {

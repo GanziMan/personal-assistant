@@ -99,9 +99,12 @@ struct AssistantView: View {
             Avatar(mood: mood)
 
             VStack(alignment: .leading, spacing: 1) {
-                Text(headerTitle)
-                    .font(.system(size: 12, weight: .semibold))
-                    .lineLimit(1)
+                HStack(spacing: 5) {
+                    Text(headerTitle)
+                        .font(.system(size: 12, weight: .semibold))
+                        .lineLimit(1)
+                    HealthDot(capabilities: status.status.capabilities)
+                }
                 Text(headerSubtitle)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)

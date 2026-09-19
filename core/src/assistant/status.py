@@ -45,6 +45,8 @@ class Status:
     brief_at: float = 0.0
     notes: list[str] = field(default_factory=list)
     tools_ready: bool = False
+    capabilities: list[dict] = field(default_factory=list)
+    health_line: str = ""
     updated_at: float = 0.0
 
     def to_dict(self) -> dict[str, Any]:
@@ -85,6 +87,7 @@ class StatusProvider:
         status.todos = await self._todos(tools)
         status.brief, status.brief_at = self._latest_brief()
         status.notes = self._notes()
+        status.capabilities, status.health_line = await self._health()
 
         self._cached = status
         return status
@@ -106,6 +109,17 @@ class StatusProvider:
             log.debug("list_reminders 실패: %s", exc)
             return []
         return parse_reminders(text)
+
+    async def _health(self) -> tuple[list[dict], str]:
+        """비서가 스스로의 상태를 안다. 모델을 부르지 않는다."""
+        from .health import probe_ollama, probe_tools, summarize
+
+        models = self.agent.config.models
+        caps = [
+            probe_tools(self.agent.tools),
+            await probe_ollama(models.local_endpoint, models.local_embed_model),
+        ]
+        return [c.to_dict() for c in caps], summarize(caps)
 
     def _notes(self) -> list[str]:
         """감지기가 남긴 쪽지. 오래된 것은 스스로 사라진다."""
