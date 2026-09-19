@@ -28,9 +28,9 @@ struct AssistantView: View {
             }
         }
         .background(.ultraThinMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: Theme.panelRadius))
+        .clipShape(RoundedRectangle(cornerRadius: Theme.Radius.panel))
         .overlay(
-            RoundedRectangle(cornerRadius: Theme.panelRadius)
+            RoundedRectangle(cornerRadius: Theme.Radius.panel)
                 .strokeBorder(Theme.stroke(scheme), lineWidth: 1)
         )
         .background {
@@ -62,15 +62,15 @@ struct AssistantView: View {
         }
         .overlay {
             if dropTargeted {
-                RoundedRectangle(cornerRadius: Theme.panelRadius)
+                RoundedRectangle(cornerRadius: Theme.Radius.panel)
                     .strokeBorder(Color.accentColor, style: StrokeStyle(lineWidth: 2, dash: [6]))
                     .background(
                         Color.accentColor.opacity(0.08),
-                        in: RoundedRectangle(cornerRadius: Theme.panelRadius)
+                        in: RoundedRectangle(cornerRadius: Theme.Radius.panel)
                     )
                     .overlay {
                         Label("여기에 놓으면 비서가 봅니다", systemImage: "arrow.down.doc")
-                            .font(.system(size: 12, weight: .medium))
+                            .font(Theme.Font.label)
                             .foregroundStyle(Color.accentColor)
                     }
                     .allowsHitTesting(false)
@@ -96,13 +96,13 @@ struct AssistantView: View {
                     }
                     HealthBanner(capabilities: status.status.capabilities)
                 }
-                .padding(.horizontal, 15)
-                .padding(.bottom, 10)
+                .padding(.horizontal, Theme.Space.lg)
+                .padding(.bottom, Theme.Space.sm)
             }
 
             ScrollViewReader { proxy in
                 ScrollView {
-                    VStack(alignment: .leading, spacing: 14) {
+                    VStack(alignment: .leading, spacing: Theme.Space.md) {
                         if !hasConversation {
                             Onboarding { prompt in
                                 conversation.input = prompt
@@ -126,8 +126,8 @@ struct AssistantView: View {
                             .transition(.opacity)
                         }
                     }
-                    .padding(.horizontal, 15)
-                    .padding(.bottom, 10)
+                    .padding(.horizontal, Theme.Space.lg)
+                    .padding(.bottom, Theme.Space.sm)
                 }
                 .onChange(of: conversation.turns.last?.text) { _, _ in
                     guard let last = conversation.turns.last else { return }
@@ -153,12 +153,12 @@ struct AssistantView: View {
             VStack(alignment: .leading, spacing: 1) {
                 HStack(spacing: 5) {
                     Text(headerTitle)
-                        .font(.system(size: 12, weight: .semibold))
+                        .font(Theme.Font.title)
                         .lineLimit(1)
                     HealthDot(capabilities: status.status.capabilities)
                 }
                 Text(headerSubtitle)
-                    .font(.system(size: 11))
+                    .font(Theme.Font.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
             }
@@ -182,7 +182,7 @@ struct AssistantView: View {
                 panel.isPinned.toggle()
             }
         }
-        .padding(.horizontal, 14)
+        .padding(.horizontal, Theme.Space.lg)
         .padding(.vertical, panel.isCompact ? 0 : 11)
         .frame(height: panel.isCompact ? PanelController.compactHeight : nil)
     }
@@ -209,7 +209,7 @@ struct AssistantView: View {
     ) -> some View {
         Button(action: action) {
             Image(systemName: symbol)
-                .font(.system(size: 11, weight: .medium))
+                .font(Theme.Font.label)
                 .frame(width: 22, height: 22)
                 .contentShape(Rectangle())
         }
@@ -232,10 +232,10 @@ struct AssistantView: View {
                             Image(systemName: item.icon)
                                 .font(.system(size: 9))
                             Text(item.label)
-                                .font(.system(size: 11, weight: .medium))
+                                .font(Theme.Font.label)
                         }
-                        .padding(.horizontal, 9)
-                        .padding(.vertical, 5)
+                        .padding(.horizontal, Theme.Space.md)
+                        .padding(.vertical, 6)
                         .background(Theme.cardFill(scheme), in: Capsule())
                         .overlay(Capsule().strokeBorder(Theme.stroke(scheme), lineWidth: 1))
                     }
@@ -243,7 +243,7 @@ struct AssistantView: View {
                     .foregroundStyle(.secondary)
                 }
             }
-            .padding(.horizontal, 15)
+            .padding(.horizontal, Theme.Space.lg)
         }
         .frame(height: 34)
     }
@@ -254,7 +254,7 @@ struct AssistantView: View {
         HStack(spacing: 8) {
             TextField("무엇을 할까요?", text: $conversation.input, axis: .vertical)
                 .textFieldStyle(.plain)
-                .font(.system(size: 13))
+                .font(Theme.Font.body)
                 .lineLimit(1...5)
                 .focused($inputFocused)
                 .onSubmit(conversation.submit)
@@ -289,12 +289,12 @@ struct AssistantView: View {
                 .disabled(empty)
             }
         }
-        .padding(.horizontal, 12)
-        .padding(.vertical, 9)
+        .padding(.horizontal, Theme.Space.md)
+        .padding(.vertical, Theme.Space.sm)
         .cardBackground()
-        .padding(.horizontal, 12)
-        .padding(.bottom, 12)
-        .padding(.top, 4)
+        .padding(.horizontal, Theme.Space.md)
+        .padding(.bottom, Theme.Space.md)
+        .padding(.top, Theme.Space.xs)
     }
 }
 
@@ -308,10 +308,10 @@ struct TurnRow: View {
         switch turn.role {
         case .user:
             Text(turn.text)
-                .font(.system(size: 13))
+                .font(Theme.Font.body)
                 .padding(.horizontal, 11)
                 .padding(.vertical, 7)
-                .background(Color.accentColor.opacity(0.9), in: RoundedRectangle(cornerRadius: 12))
+                .background(Theme.accent, in: RoundedRectangle(cornerRadius: Theme.Radius.card))
                 .foregroundStyle(.white)
                 .frame(maxWidth: .infinity, alignment: .trailing)
 
@@ -327,12 +327,12 @@ struct TurnRow: View {
                 Image(systemName: "exclamationmark.circle")
                     .font(.system(size: 10))
                 Text(turn.text)
-                    .font(.system(size: 11))
+                    .font(Theme.Font.caption)
                     .textSelection(.enabled)
             }
             .foregroundStyle(.orange)
             .padding(9)
-            .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: 9))
+            .background(.orange.opacity(0.12), in: RoundedRectangle(cornerRadius: Theme.Radius.card))
             .frame(maxWidth: .infinity, alignment: .leading)
         }
     }

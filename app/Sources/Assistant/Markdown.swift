@@ -18,7 +18,7 @@ struct MarkdownText: View {
                         PathLine(text: text, path: path, attributed: inline(text))
                     } else {
                         Text(inline(text))
-                            .font(.system(size: 13))
+                            .font(Theme.Font.body)
                             .textSelection(.enabled)
                             .fixedSize(horizontal: false, vertical: true)
                     }
@@ -28,10 +28,10 @@ struct MarkdownText: View {
                         ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                             HStack(alignment: .firstTextBaseline, spacing: 7) {
                                 Text("•")
-                                    .font(.system(size: 13))
+                                    .font(Theme.Font.body)
                                     .foregroundStyle(.secondary)
                                 Text(inline(item))
-                                    .font(.system(size: 13))
+                                    .font(Theme.Font.body)
                                     .textSelection(.enabled)
                                     .fixedSize(horizontal: false, vertical: true)
                             }
@@ -175,13 +175,13 @@ private struct CodeBlock: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 Text(code)
-                    .font(.system(size: 11.5, design: .monospaced))
+                    .font(Theme.Font.mono)
                     .textSelection(.enabled)
                     .padding(.horizontal, 9)
                     .padding(.bottom, 8)
             }
         }
-        .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: 8))
+        .background(Color.primary.opacity(0.06), in: RoundedRectangle(cornerRadius: Theme.Radius.card))
     }
 
     private func copy() {
@@ -243,7 +243,7 @@ private struct PathLine: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 4) {
             Text(attributed)
-                .font(.system(size: 13))
+                .font(Theme.Font.body)
                 .textSelection(.enabled)
                 .fixedSize(horizontal: false, vertical: true)
 

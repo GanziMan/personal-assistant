@@ -22,7 +22,7 @@ struct Onboarding: View {
             VStack(alignment: .leading, spacing: 11) {
                 HStack {
                     Text("이런 걸 시킬 수 있습니다")
-                        .font(.system(size: 11, weight: .medium))
+                        .font(Theme.Font.label)
                         .foregroundStyle(.tertiary)
                     Spacer()
                     Button {
@@ -43,14 +43,14 @@ struct Onboarding: View {
                         } label: {
                             HStack(alignment: .top, spacing: 8) {
                                 Image(systemName: icon)
-                                    .font(.system(size: 11))
+                                    .font(Theme.Font.caption)
                                     .foregroundStyle(Color.accentColor)
                                     .frame(width: 15, alignment: .center)
                                     .padding(.top, 1)
 
                                 VStack(alignment: .leading, spacing: 1) {
                                     Text(prompt)
-                                        .font(.system(size: 12))
+                                        .font(Theme.Font.body)
                                     Text(note)
                                         .font(.system(size: 10))
                                         .foregroundStyle(.tertiary)
@@ -68,7 +68,7 @@ struct Onboarding: View {
                     .foregroundStyle(.tertiary)
                     .padding(.top, 2)
             }
-            .padding(12)
+            .padding(Theme.Space.md)
             .cardBackground()
         }
     }

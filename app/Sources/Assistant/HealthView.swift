@@ -21,7 +21,7 @@ struct HealthBanner: View {
                         Image(systemName: "bolt.slash.fill")
                             .font(.system(size: 10))
                         Text(headline)
-                            .font(.system(size: 11, weight: .medium))
+                            .font(Theme.Font.label)
                             .lineLimit(1)
                         Spacer(minLength: 2)
                         Image(systemName: expanded ? "chevron.up" : "chevron.down")
@@ -38,9 +38,9 @@ struct HealthBanner: View {
                     }
                 }
             }
-            .padding(.horizontal, 10)
-            .padding(.vertical, 8)
-            .background(.yellow.opacity(0.12), in: RoundedRectangle(cornerRadius: 9))
+            .padding(.horizontal, Theme.Space.md)
+            .padding(.vertical, Theme.Space.sm)
+            .background(.yellow.opacity(0.12), in: RoundedRectangle(cornerRadius: Theme.Radius.card))
         }
     }
 
@@ -59,7 +59,7 @@ private struct CapabilityRow: View {
         VStack(alignment: .leading, spacing: 5) {
             if !capability.degraded.isEmpty {
                 Text(capability.degraded)
-                    .font(.system(size: 11))
+                    .font(Theme.Font.caption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -76,7 +76,7 @@ private struct CapabilityRow: View {
                 } label: {
                     HStack(spacing: 5) {
                         Text(capability.fix)
-                            .font(.system(size: 11, design: .monospaced))
+                            .font(Theme.Font.mono)
                         Image(systemName: copied ? "checkmark" : "doc.on.doc")
                             .font(.system(size: 9))
                     }
