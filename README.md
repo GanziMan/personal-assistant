@@ -64,19 +64,6 @@ claude login
 ./scripts/install.sh
 ```
 
-## 여러 맥에서 쓰기
-
-맥마다 독립적으로 설치한다. 기억과 문서 색인은 그 맥의 레포·파일에
-대한 것이라 옮기지 않는다 (ADR-033). 설정과 구독 피드만 옮긴다.
-
-```
-# 기존 맥에서
-./scripts/profile.sh export ~/Desktop/assistant-profile.json
-
-# 새 맥에서
-./scripts/profile.sh import ~/Desktop/assistant-profile.json
-```
-
 추론은 Claude Code 로그인(Pro/Max 구독)에서 사용량이 빠진다. 별도 API
 과금이 없다 (ADR-007). API 키로 쓰려면 `~/.assistant/config.toml` 에
 `[models] backend = "api"` 를 넣는다.
@@ -87,6 +74,45 @@ macOS TCC 가 `~/Documents` 를 보호해서 launchd 데몬이 그 안을 읽지
 
 ```
 ~/.assistant/venv/bin/assistant "오늘 일정 뭐야"
+```
+
+## 코드를 고친 뒤
+
+editable 설치가 아니므로 다시 깔아야 반영된다.
+
+```
+git pull
+./scripts/install.sh      # 데몬
+./scripts/build-app.sh    # 메뉴바 앱
+```
+
+앱만 고쳤으면 `build-app.sh` 만, 데몬만 고쳤으면 `install.sh` 만 돌리면
+된다. 뭔가 이상하면 진단부터:
+
+```
+./scripts/doctor.sh
+```
+
+데몬·구독 백엔드·MCP 서버·Ollama·앱·폴더 권한과 이번 기동의 오류를
+한 번에 보여준다.
+
+## 여러 맥에서 쓰기
+
+맥마다 독립적으로 설치한다. 새 맥에서 위 설치 과정을 그대로 반복하면
+그 맥의 캘린더·파일·레포를 보는 비서가 따로 생긴다. Claude 구독이
+같은 계정이면 `claude login` 한 번이면 된다.
+
+기억과 문서 색인은 옮기지 않는다. 그 맥의 레포·파일 경로에 묶여 있고,
+SQLite 를 파일 동기화로 나르면 WAL 때문에 깨진다 (ADR-033).
+
+설정과 구독 피드만 옮긴다.
+
+```
+# 기존 맥에서
+./scripts/profile.sh export ~/Desktop/assistant-profile.json
+
+# 새 맥에서 (bootstrap.sh 를 먼저 실행한 뒤)
+./scripts/profile.sh import ~/Desktop/assistant-profile.json
 ```
 
 ## 메뉴바 앱
