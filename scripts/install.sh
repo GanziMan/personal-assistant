@@ -43,7 +43,8 @@ uv pip install --python "$VENV/bin/python" -q \
   "$REPO/core" \
   "$REPO/mcp-servers/macos-calendar" \
   "$REPO/mcp-servers/macos-system" \
-  "$REPO/mcp-servers/macos-files"
+  "$REPO/mcp-servers/macos-files" \
+  "$REPO/mcp-servers/feeds"
 
 [[ -x "$VENV/bin/assistantd" ]] || die "assistantd 진입점이 만들어지지 않았습니다."
 

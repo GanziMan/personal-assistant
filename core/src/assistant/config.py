@@ -57,6 +57,11 @@ class AgentConfig:
     # 파괴적 도구는 확인 게이트를 통과해야 한다 (ADR-005)
     require_confirmation: bool = True
 
+    # Claude Code 내장 웹 도구. 검색·페치는 직접 만들 이유가 없다.
+    # 파일·셸 내장 도구는 여전히 막는다 — 그건 우리 파일 서버의
+    # 경로 경계를 우회하는 통로가 된다.
+    allow_web_tools: bool = True
+
 
 def default_servers() -> list[dict[str, object]]:
     """기본 MCP 서버.
@@ -70,6 +75,7 @@ def default_servers() -> list[dict[str, object]]:
         {"name": "calendar", "command": str(bindir / "macos-calendar-mcp"), "args": []},
         {"name": "system", "command": str(bindir / "macos-system-mcp"), "args": []},
         {"name": "files", "command": str(bindir / "macos-files-mcp"), "args": []},
+        {"name": "feeds", "command": str(bindir / "feeds-mcp"), "args": []},
     ]
 
 

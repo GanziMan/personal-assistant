@@ -43,6 +43,18 @@ class SubscriptionBackend:
         self._approved: set[str] = set()
         self._pending: dict[str, tuple[str, str]] = {}  # session -> (tool, prompt)
 
+    def _allowed_tools(self, server_names: list[str]) -> list[str]:
+        """우리 MCP 서버 + (선택) 내장 웹 도구.
+
+        Read/Write/Bash 같은 내장 도구는 주지 않는다. 그것들은 파일
+        서버의 경로 경계를 그대로 우회한다 — 경계를 한 곳에 두려면
+        파일 접근은 우리 서버만 통해야 한다.
+        """
+        tools = [f"mcp__{name}" for name in server_names]
+        if self.config.agent.allow_web_tools:
+            tools += ["WebSearch", "WebFetch"]
+        return tools
+
     async def _permit(self, tool_name: str, args: dict[str, Any], context: Any) -> Any:
         from claude_agent_sdk import PermissionResultAllow, PermissionResultDeny
 
@@ -89,7 +101,7 @@ class SubscriptionBackend:
             # CLAUDE.md·프로젝트 설정도 읽지 않는다. 비서의 행동은
             # prompts.py 하나로만 결정되어야 한다.
             setting_sources=[],
-            allowed_tools=[f"mcp__{name}" for name in mcp_servers],
+            allowed_tools=self._allowed_tools(list(mcp_servers)),
             can_use_tool=self._permit,
             max_turns=self.config.agent.max_iterations,
         )
