@@ -18,6 +18,7 @@ from .llm.cloud import CloudLLM
 from .llm.router import ModelRouter, TaskKind
 from .prompts import SYSTEM
 from .protocol import Event, EventType
+from .memory import Episode, MemoryStore
 from .tools import ServerSpec, ToolRegistry
 from .tools.registry import ConfirmationRequired, ToolError
 
@@ -41,6 +42,7 @@ class Agent:
         self.tools = ToolRegistry(
             audit=self.audit, require_confirmation=config.agent.require_confirmation
         )
+        self.memory = MemoryStore()
         self._cloud: CloudLLM | None = None
         self._sessions: dict[str, Session] = {}
 
@@ -57,6 +59,28 @@ class Agent:
 
     async def aclose(self) -> None:
         await self.tools.aclose()
+        self.memory.close()
+
+    async def run_silent(self, prompt: str, *, session_id: str = "background") -> str:
+        """대화창 없이 한 턴 돌리고 텍스트만 받는다. 스케줄러가 쓴다."""
+        parts: list[str] = []
+        async for event in self.run(session_id, prompt):
+            if event.type is EventType.TEXT:
+                parts.append(event.text)
+            elif event.type is EventType.ERROR:
+                raise RuntimeError(event.text)
+        return "".join(parts)
+
+    def remember(self, title: str, body: str = "", *, kind: str = "conversation",
+                 session_id: str = "", importance: float = 0.5) -> None:
+        """일화를 적재한다. 실패해도 대화를 멈추지 않는다."""
+        try:
+            self.memory.add_episode(
+                Episode(title=title, body=body, kind=kind,
+                        session_id=session_id, importance=importance)
+            )
+        except Exception as exc:
+            self.audit.record("memory_write_failed", error=repr(exc))
 
     @property
     def cloud(self) -> CloudLLM:

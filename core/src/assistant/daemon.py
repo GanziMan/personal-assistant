@@ -17,6 +17,8 @@ import sys
 from .agent import Agent
 from .config import LOG_DIR, SOCKET_PATH, Config, ensure_dirs
 from .protocol import Event, EventType
+from .scheduler import DEFAULT_JOBS, Scheduler
+from .scheduler.delivery import Delivery
 
 log = logging.getLogger("assistantd")
 
@@ -26,6 +28,7 @@ class Daemon:
         self.config = config
         self.agent = Agent(config)
         self._server: asyncio.Server | None = None
+        self._scheduler: Scheduler | None = None
         self._tasks: set[asyncio.Task[None]] = set()
 
     async def handle(
@@ -77,6 +80,15 @@ class Daemon:
 
         await self.agent.start()
 
+        # 알림 잡은 도구가 있어야 의미가 있다. 도구층이 뜬 뒤에 시작한다.
+        self._scheduler = Scheduler(
+            list(DEFAULT_JOBS),
+            run_job=lambda job: self.agent.run_silent(job.prompt, session_id=f"job:{job.name}"),
+            on_result=Delivery(self.agent),
+            timezone=self.config.timezone,
+        )
+        self._scheduler.start()
+
         self._server = await asyncio.start_unix_server(self.handle, path=str(SOCKET_PATH))
         os.chmod(SOCKET_PATH, 0o600)  # 소유자만
         log.info("listening on %s", SOCKET_PATH)
@@ -90,6 +102,8 @@ class Daemon:
             await stop.wait()
 
         log.info("shutting down")
+        if self._scheduler is not None:
+            await self._scheduler.stop()
         await self.agent.aclose()
         with contextlib.suppress(FileNotFoundError):
             SOCKET_PATH.unlink()
