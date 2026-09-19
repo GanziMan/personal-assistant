@@ -78,6 +78,12 @@ class Daemon:
         if SOCKET_PATH.exists():
             SOCKET_PATH.unlink()
 
+        # 소켓을 먼저 연다. 도구층이 느리거나 깨져도 클라이언트는 붙을 수
+        # 있어야 한다 — 연결조차 안 되면 사용자는 원인을 알 방법이 없다.
+        self._server = await asyncio.start_unix_server(self.handle, path=str(SOCKET_PATH))
+        os.chmod(SOCKET_PATH, 0o600)  # 소유자만
+        log.info("listening on %s", SOCKET_PATH)
+
         await self.agent.start()
 
         # 알림 잡은 도구가 있어야 의미가 있다. 도구층이 뜬 뒤에 시작한다.
@@ -88,10 +94,6 @@ class Daemon:
             timezone=self.config.timezone,
         )
         self._scheduler.start()
-
-        self._server = await asyncio.start_unix_server(self.handle, path=str(SOCKET_PATH))
-        os.chmod(SOCKET_PATH, 0o600)  # 소유자만
-        log.info("listening on %s", SOCKET_PATH)
 
         stop = asyncio.Event()
         loop = asyncio.get_running_loop()

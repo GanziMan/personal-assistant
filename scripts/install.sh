@@ -19,6 +19,16 @@ uv sync --all-extras
 VENV="$REPO/core/.venv"
 [[ -x "$VENV/bin/assistantd" ]] || die "assistantd 진입점이 만들어지지 않았습니다."
 
+say "MCP 서버 설치"
+# 서버는 독립 패키지지만 데몬이 같은 venv 에서 실행 파일을 찾는다
+for server in macos-calendar macos-system; do
+  uv pip install --python "$VENV/bin/python" -q -e "$REPO/mcp-servers/$server"
+done
+
+say "임포트 검증"
+# 여기서 걸러야 launchd 가 조용히 죽는 상황을 피한다
+"$VENV/bin/python" -c "import assistant.daemon" || die "데몬 임포트 실패 (위 오류 확인)"
+
 say "런타임 디렉터리 준비"
 mkdir -p "$HOME/.assistant/logs"
 chmod 700 "$HOME/.assistant"
@@ -38,7 +48,10 @@ launchctl bootout "gui/$UID/$LABEL" 2>/dev/null || true
 launchctl bootstrap "gui/$UID" "$PLIST"
 launchctl kickstart -k "gui/$UID/$LABEL"
 
-sleep 1
+for _ in $(seq 1 15); do
+  [[ -S "$HOME/.assistant/agent.sock" ]] && break
+  sleep 1
+done
 if [[ -S "$HOME/.assistant/agent.sock" ]]; then
   say "데몬이 떴습니다."
   echo
@@ -46,5 +59,8 @@ if [[ -S "$HOME/.assistant/agent.sock" ]]; then
   echo "  로그:    tail -f ~/.assistant/logs/daemon.err.log"
   echo "  재시작:  launchctl kickstart -k gui/\$UID/$LABEL"
 else
-  die "소켓이 생기지 않았습니다. 로그를 보세요: ~/.assistant/logs/daemon.err.log"
+  echo
+  echo "--- daemon.err.log (마지막 30줄) ---"
+  tail -30 "$HOME/.assistant/logs/daemon.err.log" 2>/dev/null || echo "(로그 없음)"
+  die "소켓이 생기지 않았습니다."
 fi
