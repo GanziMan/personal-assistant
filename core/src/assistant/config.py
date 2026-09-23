@@ -87,6 +87,7 @@ def default_servers() -> list[dict[str, object]]:
         {"name": "dev", "command": str(bindir / "dev-mcp"), "args": []},
         {"name": "memory", "command": str(bindir / "memory-mcp"), "args": []},
         {"name": "docsearch", "command": str(bindir / "docsearch-mcp"), "args": []},
+        {"name": "jobs", "command": str(bindir / "jobs-mcp"), "args": []},
     ]
 
 

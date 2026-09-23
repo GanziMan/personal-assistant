@@ -80,6 +80,15 @@ DEFAULT_JOBS: tuple[Job, ...] = (
         kind="prep",
         notify=False,  # 쪽지로만. 알림은 upcoming_event 가 이미 한다
     ),
+    # 아침·저녁 두 번. 공고는 분 단위로 바뀌지 않고 API 한도도 있다.
+    Job(
+        name="new_jobs",
+        cron="0 9,19 * * *",
+        mode="rule",
+        rule="new_jobs",
+        kind="jobs",
+        notify=False,
+    ),
     # 새벽에 한 번. 바뀐 파일만 읽으므로 보통 몇 초다.
     Job(
         name="reindex_docs",

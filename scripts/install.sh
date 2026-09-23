@@ -56,7 +56,8 @@ uv pip install --python "$VENV/bin/python" -q \
   "$REPO/mcp-servers/feeds" \
   "$REPO/mcp-servers/dev" \
   "$REPO/mcp-servers/memory" \
-  "$REPO/mcp-servers/docsearch"
+  "$REPO/mcp-servers/docsearch" \
+  "$REPO/mcp-servers/jobs"
 
 [[ -x "$VENV/bin/assistantd" ]] || die "assistantd 진입점이 만들어지지 않았습니다."
 
@@ -83,6 +84,11 @@ if command -v ollama >/dev/null; then
   brew services list 2>/dev/null | grep -q "^ollama.*started" \
     || brew services start ollama >/dev/null 2>&1 \
     || echo "  (수동 실행 필요: ollama serve &)"
+fi
+
+if ! security find-generic-password -s assistant-saramin -w >/dev/null 2>&1; then
+  echo "  (선택) 채용공고 기능을 쓰려면 사람인 access-key 를 저장하세요:"
+  echo "    security add-generic-password -a \"$USER\" -s assistant-saramin -w"
 fi
 
 say "launchd 등록"

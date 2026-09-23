@@ -37,6 +37,31 @@ def registered() -> list[str]:
     return sorted(_REGISTRY)
 
 
+@rule("new_jobs")
+async def new_jobs(tools) -> str:  # noqa: ANN001
+    """새로 올라온 채용공고를 확인한다.
+
+    사람인 API 는 하루 요청 한도가 있다. 하루 두 번이면 충분하고,
+    자주 부를 이유도 없다 — 공고는 분 단위로 바뀌지 않는다.
+    """
+    from ..detect.notes import NoteBoard
+
+    try:
+        result = (await tools.call("jobs__find_jobs", {"only_new": True})).strip()
+    except Exception as exc:
+        log.debug("공고 조회 실패: %s", exc)
+        return ""
+
+    if not result or "없습니다" in result.splitlines()[0]:
+        return ""
+
+    # 몇 건인지만 쪽지로. 목록은 물어보면 기억에서 꺼낸다.
+    count = result.count("■")
+    headline = f"새 채용공고가 올라왔습니다 ({count}개 검색 조건)"
+    NoteBoard().put("new_jobs", headline)
+    return result
+
+
 @rule("reindex_docs")
 async def reindex_docs(tools) -> str:  # noqa: ANN001
     """문서 색인을 갱신한다. 바뀐 파일만 다시 읽으므로 대개 금방 끝난다."""

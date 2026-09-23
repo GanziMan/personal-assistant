@@ -61,7 +61,7 @@ class Agent:
         # 같은 규모로 또 띄우면 프로세스가 두 배가 되고 기동이 느려진다.
         # 데몬이 직접 부르는 건 대기 화면(calendar)과 알림(system)뿐이다.
         needed = (
-            {"calendar", "system", "dev", "files", "memory", "docsearch"}
+            {"calendar", "system", "dev", "files", "memory", "docsearch", "jobs"}
             if self.uses_subscription
             else None
         )
