@@ -9,8 +9,9 @@ import sys
 
 from mcp.server.mcpserver import MCPServer
 
+from . import ats
 from .client import JobsError, search
-from .config import JobsConfig, Search
+from .config import CompanyEntry, JobsConfig, Search
 from .model import Job
 from .store import SeenStore
 
@@ -119,6 +120,113 @@ async def find_jobs(name: str = "", only_new: bool = False, limit: int = 20) -> 
         store.mark(fresh_ids)
 
     return "\n\n".join(blocks) + f"\n\n{ATTRIBUTION}"
+
+
+# ---- 관심 회사 (ATS 직접 조회) --------------------------------------
+
+
+@mcp.tool()
+async def check_company(slug: str) -> str:
+    """회사가 어느 채용 시스템을 쓰는지 찾는다.
+
+    slug 는 회사 채용 페이지 URL 에 들어가는 이름이다.
+    예: boards.greenhouse.io/toss 면 slug 는 toss.
+    """
+    found = await ats.detect(slug)
+    if not found:
+        return (
+            f"'{slug}' 로는 Greenhouse·Lever·Ashby 어디에서도 공고를 찾지 못했습니다.\n"
+            "회사 채용 페이지 주소를 확인해 보세요 — URL 마지막 부분이 slug 입니다."
+        )
+    listed = ", ".join(found)
+    return f"'{slug}' 을(를) {listed} 에서 찾았습니다. add_company 로 등록하세요."
+
+
+@mcp.tool()
+async def add_company(slug: str, label: str = "", keywords: str = "") -> str:
+    """관심 회사를 등록한다. ATS 는 자동으로 찾는다.
+
+    keywords 를 주면 그 말이 들어간 공고만 본다 (쉼표로 구분).
+    """
+    config = JobsConfig.load()
+    if config.find_company(slug):
+        return f"'{slug}' 은 이미 등록돼 있습니다."
+
+    found = await ats.detect(slug)
+    if not found:
+        return f"'{slug}' 에서 공고를 찾지 못했습니다. check_company 로 먼저 확인하세요."
+
+    config.companies.append(
+        CompanyEntry(
+            slug=slug,
+            ats=found[0],
+            label=label,
+            keywords=[k.strip() for k in keywords.split(",") if k.strip()],
+        )
+    )
+    config.save()
+    return f"'{label or slug}' 을(를) {found[0]} 로 등록했습니다."
+
+
+@mcp.tool()
+def list_companies() -> str:
+    """등록한 관심 회사들."""
+    config = JobsConfig.load()
+    if not config.companies:
+        return "등록된 회사가 없습니다. check_company 로 확인한 뒤 add_company 로 추가하세요."
+    return "\n".join(
+        f"- {c.label or c.slug} ({c.ats})"
+        + (f" · 키워드 {', '.join(c.keywords)}" if c.keywords else "")
+        for c in config.companies
+    )
+
+
+@mcp.tool()
+def remove_company(slug: str) -> str:
+    """관심 회사를 지운다."""
+    config = JobsConfig.load()
+    before = len(config.companies)
+    key = slug.strip().lower()
+    config.companies = [
+        c for c in config.companies if c.slug.lower() != key and c.label.lower() != key
+    ]
+    if len(config.companies) == before:
+        return f"'{slug}' 을 찾지 못했습니다."
+    config.save()
+    return f"'{slug}' 을 지웠습니다."
+
+
+@mcp.tool()
+async def company_jobs(only_new: bool = False, limit: int = 30) -> str:
+    """등록한 회사들의 공고를 가져온다. 사람인 승인 없이도 된다."""
+    config = JobsConfig.load()
+    if not config.companies:
+        return "등록된 회사가 없습니다."
+
+    store = SeenStore()
+    blocks: list[str] = []
+    fresh: list[str] = []
+
+    for entry in config.companies:
+        company = ats.Company(slug=entry.slug, ats=entry.ats, label=entry.label)
+        jobs = [j for j in await ats.fetch(company) if ats.matches(j, entry.keywords)]
+        if only_new:
+            jobs = [j for j in jobs if store.is_new(j.id)]
+        if not jobs:
+            continue
+
+        fresh += [j.id for j in jobs]
+        shown = jobs[:limit]
+        listed = "\n\n".join(j.describe() for j in shown)
+        more = f"\n\n… 외 {len(jobs) - len(shown)}건" if len(jobs) > len(shown) else ""
+        blocks.append(f"■ {company.name} ({len(jobs)}건)\n\n{listed}{more}")
+
+    if not blocks:
+        return "새 공고가 없습니다." if only_new else "공고가 없습니다."
+
+    if only_new:
+        store.mark(fresh)
+    return "\n\n".join(blocks)
 
 
 @mcp.tool()

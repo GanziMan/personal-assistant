@@ -41,8 +41,19 @@ class Search:
 
 
 @dataclass(slots=True)
+class CompanyEntry:
+    """관심 회사 하나. ATS 직접 조회 대상."""
+
+    slug: str
+    ats: str
+    label: str = ""
+    keywords: list[str] = field(default_factory=list)
+
+
+@dataclass(slots=True)
 class JobsConfig:
     searches: list[Search] = field(default_factory=list)
+    companies: list[CompanyEntry] = field(default_factory=list)
 
     @classmethod
     def load(cls, path: Path | None = None) -> JobsConfig:
@@ -56,17 +67,32 @@ class JobsConfig:
         return cls(
             searches=[
                 Search(**s) for s in raw.get("searches", []) if isinstance(s, dict)
-            ]
+            ],
+            companies=[
+                CompanyEntry(**c) for c in raw.get("companies", []) if isinstance(c, dict)
+            ],
         )
 
     def save(self, path: Path | None = None) -> None:
         path = path or CONFIG_PATH
         path.parent.mkdir(mode=0o700, parents=True, exist_ok=True)
         path.write_text(
-            json.dumps({"searches": [asdict(s) for s in self.searches]},
-                       ensure_ascii=False, indent=2),
+            json.dumps(
+                {
+                    "searches": [asdict(s) for s in self.searches],
+                    "companies": [asdict(c) for c in self.companies],
+                },
+                ensure_ascii=False, indent=2,
+            ),
             encoding="utf-8",
         )
 
     def find(self, name: str) -> Search | None:
         return next((s for s in self.searches if s.name == name), None)
+
+    def find_company(self, slug: str) -> CompanyEntry | None:
+        key = slug.strip().lower()
+        return next(
+            (c for c in self.companies if c.slug.lower() == key or c.label.lower() == key),
+            None,
+        )
